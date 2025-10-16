@@ -114,17 +114,17 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             - z: Sampled latent space.
 
         """
-        # print("Debug: predict x")
+        print("Debug: predict x")
         batch_size = len(x)
         latent_mu, latent_sigma = self.encoder(x).chunk(2, dim=1) #both with size [batch_size, latent_size]
 
-        # print("latent mu:")
-        # print(latent_mu)
-        # print(latent_mu.size())
-        # print(latent_sigma.size())
+        print("latent mu:")
+        print(latent_mu)
+        print(latent_mu.size())
+        print(latent_sigma.size())
         latent_sigma = softplus(latent_sigma)
-        # print("latent sigma:")
-        # print(latent_sigma)
+        print("latent sigma:")
+        print(latent_sigma)
         dist = Normal(latent_mu, latent_sigma)
         z = dist.rsample([self.L])  # shape: [L, batch_size, latent_size]
         z = z.view(self.L * batch_size, self.latent_size)

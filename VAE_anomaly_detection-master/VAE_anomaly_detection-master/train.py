@@ -80,10 +80,10 @@ def main():
 
     model = VAEAnomalyTabular(args.input_size, args.latent_size, args.num_resamples, lr=args.lr)
 
-    train_set = test_dataset()  # set here your dataset
+    train_set = mnist_dataset()  # set here your dataset
     train_dloader = DataLoader(train_set, args.batch_size)
 
-    val_dataset = test_dataset()  # set here your dataset
+    val_dataset = mnist_dataset()  # set here your dataset
     val_dloader = DataLoader(val_dataset, args.batch_size)
 
     checkpoint = ModelCheckpoint(
@@ -98,6 +98,12 @@ def main():
 
     trainer = Trainer(callbacks=[checkpoint],)
     trainer.fit(model, train_dloader, val_dloader)
+
+
+    #load X_test
+    # model = VAEAnomalyTabular.load_checkpoint('saved_models/2022-01-06_15-12-23/last.ckpt')
+    # # load saved parameters from a run
+    # outliers = model.is_anomaly(X_test)
 
 if __name__ == '__main__':
     main()
