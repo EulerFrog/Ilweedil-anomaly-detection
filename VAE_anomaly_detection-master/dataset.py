@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 
 import numpy as np
@@ -38,20 +39,61 @@ def mnist_dataset(train=True) -> Dataset:
     """
     return MNISTDataset(train=train)
 
-class CSVDataset(Dataset):
+
+class CSVDataset():
 
     def __init__(self):
-        data = np.loadtxt('./data/test.csv', delimiter=',', dtype=np.float32, skiprows=0)
-        self.x = torch.from_numpy(data)
-        self.y = torch.from_numpy(data[:, [4]]) if data.shape[1] > 4 else None
-        self.n_samples = data.shape[0]
+      
+        data1 = np.loadtxt('./data/NF-UNSW-NB15.csv', delimiter=',',
+                           dtype=np.str_, skiprows=1)
+        # print(data1)
+        num1 = 0
+        num2 = 0
+        for i in data1:
+            num2 = 0
+            for j in i:
+                temp = float("".join(j.split(".")))
 
+                print(temp)
+                data1[num1,num2] = 1 / (1 + math.exp(0.001 * -temp))
+                # # linear constrain to 0 - 1
+                # if num2 == 0 or num2 == 2: # if source or dest ip
+                #     temp = temp / 2552552552550 # max ip addr
+                # elif num2 == 1 or num2 == 3: # port case
+                #     temp = temp / 65535 # max port #
+                # elif num2 == 4: # protocol
+                #     temp = temp / 17 # max
+                # elif num2 == 5: # l7 protocol
+                #     temp = temp / 244 # max 
+                # elif num2 == 6 or num2 == 7: # bytes in/out
+                #     temp = temp / 3000000000 # max observed
+                # elif num2 == 8 or num2 == 8: # packets in/out
+                #     temp = temp / 100000 # max observed
+                # data1[num1,num2] = temp
+
+                num2 = num2 + 1
+            num1 = num1 + 1
+        # print(data1)
+        data1 = data1.astype(float)
+        # print(data1)
+
+        self.x = torch.from_numpy(data1[:, :]).type(torch.float)
+        self.n_samples = data1.shape[0] 
+
+        print(self.x)
+        print(self.n_samples)
+    
+    # support indexing such that dataset[i] can 
+    # be used to get i-th sample
     def __getitem__(self, index):
         return self.x[index]
-
+      
+    # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
+    
 
+def test_dataset() -> CSVDataset:# Dataset:
 
-def test_dataset() -> Dataset:
+    # testing
     return CSVDataset()

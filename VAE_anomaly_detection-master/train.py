@@ -130,10 +130,10 @@ def main():
         lr=args.lr
     )
 
-    train_set = mnist_dataset(train=True)
+    train_set = test_dataset()
     train_dloader = DataLoader(train_set, args.batch_size, shuffle=True)
 
-    val_dataset = mnist_dataset(train=False)
+    val_dataset = test_dataset()
     val_dloader = DataLoader(val_dataset, args.batch_size)
 
     checkpoint = ModelCheckpoint(
