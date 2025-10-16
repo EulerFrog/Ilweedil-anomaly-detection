@@ -60,6 +60,18 @@ def main():
     print(args)
     experiment_folder = make_folder_run()
 
+    # train_set = test_dataset()  # set here your dataset
+    # print(train_set.__len__())  # Testing
+    # num = 0
+    # for i in train_set:
+    #     print("Tensor: ")
+    #     print(num)
+    #     print(i)
+    #     for j in i:
+    #         print(j)
+    #     num = num + 1
+    
+    
     # copy model folder into experiment folder
     ROOT.joinpath('model').copytree(experiment_folder / 'model')
 
@@ -86,7 +98,6 @@ def main():
 
     trainer = Trainer(callbacks=[checkpoint],)
     trainer.fit(model, train_dloader, val_dloader)
-
 
 if __name__ == '__main__':
     main()

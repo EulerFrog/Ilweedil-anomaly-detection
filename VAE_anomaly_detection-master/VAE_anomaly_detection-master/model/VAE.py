@@ -114,6 +114,10 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             - z: Sampled latent space.
 
         """
+        print("Debug: predict x")
+        print(x)
+        print(len(x))
+        
         batch_size = len(x)
         latent_mu, latent_sigma = self.encoder(x).chunk(2, dim=1) #both with size [batch_size, latent_size]
         latent_sigma = softplus(latent_sigma)
@@ -178,7 +182,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         recon_sigma = softplus(recon_sigma)
         return recon_mu + recon_sigma * torch.rand_like(recon_sigma)
     
-    
     def training_step(self, batch, batch_idx):
         x = batch
         loss = self.forward(x)
@@ -190,7 +193,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
 
         return loss
     
-
     def validation_step(self, batch, batch_idx):
         x = batch
         loss = self.forward(x)

@@ -25,24 +25,38 @@ class CSVDataset():
 
     def __init__(self):
       
-        data1 = np.loadtxt('./data/test.csv', delimiter=',',
-                           dtype=np.float32, skiprows=1)
-        
-        self.x = torch.from_numpy(data1[:, :25])
-        self.y = torch.from_numpy(data1[:, [4]])
+        data1 = np.loadtxt('./data/NF-UNSW-NB15.csv', delimiter=',',
+                           dtype=np.str_, skiprows=1)
+        # print(data1)
+        num1 = 0
+        num2 = 0
+        for i in data1:
+            num2 = 0
+            for j in i:
+                data1[num1,num2] = hash(j)
+                num2 = num2 + 1
+            num1 = num1 + 1
+        # print(data1)
+        data1 = data1.astype(float)
+        # print(data1)
+
+        self.x = torch.from_numpy(data1[:, :])
         self.n_samples = data1.shape[0] 
+
+        print(self.x)
+        print(self.n_samples)
     
     # support indexing such that dataset[i] can 
     # be used to get i-th sample
     def __getitem__(self, index):
-        return self.x[index], self.y[index]
+        return self.x[index]
       
     # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
     
 
-def test_dataset() -> Dataset:
+def test_dataset() -> CSVDataset:# Dataset:
 
     # testing
     return CSVDataset()
