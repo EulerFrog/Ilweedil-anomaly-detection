@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import argparse
 import torch
 import numpy as np
@@ -172,7 +176,7 @@ def main():
         '--checkpoint',
         type=str,
         required=True,
-        help='Path to trained model checkpoint'
+        help='Path to trained model checkpoint. Path starts from saved_models folder'
     )
     parser.add_argument(
         '--num-noise-samples',
@@ -218,14 +222,16 @@ def main():
 
     # MNIST is 28x28 = 784 features
     input_size = 784
-    latent_size = 32  # From training
+    latent_size = 64  # Updated to match 100-epoch trained model
     num_resamples = 10  # From training default
 
     # Create model instance
     model = VAEAnomalyTabular(input_size, latent_size, L=num_resamples)
 
+    path = '../saved_models/' + args.checkpoint
+
     # Load checkpoint
-    checkpoint = torch.load(args.checkpoint, map_location=device)
+    checkpoint = torch.load(path, map_location=device)
     model.load_state_dict(checkpoint['state_dict'])
     model.to(device)
     model.eval()

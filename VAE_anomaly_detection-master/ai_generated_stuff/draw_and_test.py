@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import argparse
 import torch
 import numpy as np
@@ -27,9 +31,9 @@ class DrawingApp:
         self.ax_draw.set_aspect('equal')
         self.ax_draw.invert_yaxis()
 
-        # Initialize canvas
+        # Initialize canvas (starts black)
         self.canvas = np.zeros((28, 28))
-        self.im = self.ax_draw.imshow(self.canvas, cmap='gray_r', vmin=0, vmax=1)
+        self.im = self.ax_draw.imshow(self.canvas, cmap='gray', vmin=0, vmax=1)  # Changed to 'gray' for black background
 
         # Results display
         self.ax_input = self.fig.add_subplot(2, 4, 3)
@@ -112,8 +116,8 @@ class DrawingApp:
         self.fig.canvas.draw_idle()
 
     def preprocess_drawing(self):
-        # Invert so digit is white on black background (like MNIST)
-        img = 1.0 - self.canvas
+        # Already white on black background (like MNIST), no inversion needed
+        img = self.canvas
 
         # Flatten to 784-dim vector
         img_flat = img.flatten()
@@ -216,14 +220,18 @@ def main():
 
     # MNIST is 28x28 = 784 features
     input_size = 784
-    latent_size = 32
+    latent_size = 64  # Updated to match the 100-epoch trained model
     num_resamples = 10
 
     # Create model instance
     model = VAEAnomalyTabular(input_size, latent_size, L=num_resamples)
+    print(model)
+
+    path = '../saved_models/' + args.checkpoint
 
     # Load checkpoint
-    checkpoint = torch.load(args.checkpoint, map_location=device)
+    checkpoint = torch.load(path, map_location=device)
+
     model.load_state_dict(checkpoint['state_dict'])
     model.to(device)
     model.eval()
