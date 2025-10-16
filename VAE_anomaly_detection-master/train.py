@@ -22,7 +22,7 @@ def make_folder_run() -> Path:
     The folder is named with the current date and time.
 
     Returns:
-        Path: the path to the folder where to store the experiment
+        Path: the path to the folder where to store the experiment 
     """
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     checkpoint_folder = SAVED_MODELS / timestamp
