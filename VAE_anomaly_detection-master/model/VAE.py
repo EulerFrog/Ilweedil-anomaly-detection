@@ -1,34 +1,37 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 
+import pytorch_lightning as pl
 import torch
 from torch import nn
 from torch.distributions import Normal, kl_divergence
 from torch.nn.functional import softplus
-import pytorch_lightning as pl
 
 
 class VAEAnomalyDetection(pl.LightningModule, ABC):
     """
-    Variational Autoencoder (VAE) for anomaly detection. The model learns a low-dimensional representation of the input
-    data using an encoder-decoder architecture, and uses the learned representation to detect anomalies.
+    Variational Autoencoder (VAE) for anomaly detection.
 
-    The model is trained to minimize the Kullback-Leibler (KL) divergence between the learned distribution of the latent
-    variables and the prior distribution (a standard normal distribution). It is also trained to maximize the likelihood
-    of the input data under the learned distribution.
-
-    This implementation uses PyTorch Lightning to simplify training and improve reproducibility.
+    The model learns a low-dimensional representation of the input data using an
+    encoder-decoder architecture, and uses the learned representation to detect anomalies.
     """
 
-    def __init__(self, input_size: int, latent_size: int, L: int = 10, lr: float = 1e-3, log_steps: int = 1_000):
+    def __init__(
+        self,
+        input_size: int,
+        latent_size: int,
+        L: int = 10,
+        lr: float = 1e-3,
+        log_steps: int = 1_000
+    ):
         """
         Initializes the VAEAnomalyDetection model.
 
         Args:
-            input_size (int): Number of input features.
-            latent_size (int): Size of the latent space.
-            L (int, optional): Number of samples in the latent space to detect the anomaly. Defaults to 10.
-            lr (float, optional): Learning rate. Defaults to 1e-3.
-            log_steps (int, optional): Number of steps between each logging. Defaults to 1_000.
+            input_size: Number of input features.
+            latent_size: Size of the latent space.
+            L: Number of samples in the latent space to detect the anomaly.
+            lr: Learning rate.
+            log_steps: Number of steps between each logging.
         """
         super().__init__()
         self.L = L
@@ -73,7 +76,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         Computes the forward pass of the model and returns the loss and other relevant information.
 
         Args:
-            x (torch.Tensor): Input data. Shape [batch_size, num_features].
+            x: Input data. Shape [batch_size, num_features].
 
         Returns:
             Dictionary containing:
@@ -86,13 +89,11 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             - latent_mu: Mean of the latent space.
             - latent_sigma: Standard deviation of the latent space.
             - z: Sampled latent space.
-
         """
         pred_result = self.predict(x)
-        x = x.unsqueeze(0)  # unsqueeze to broadcast input across sample dimension (L)
-        log_lik = Normal(pred_result['recon_mu'], pred_result['recon_sigma']).log_prob(x).mean(
-            dim=0)  # average over sample dimension
-        log_lik = log_lik.mean(dim=0).sum()
+        x = x.unsqueeze(0)
+        recon_dist = Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
+        log_lik = recon_dist.log_prob(x).mean(dim=0).mean(dim=0).sum()
         kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
         loss = kl - log_lik
         return dict(loss=loss, kl=kl, recon_loss=log_lik, **pred_result)
@@ -112,33 +113,37 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             - recon_mu: Mean of the reconstructed input.
             - recon_sigma: Standard deviation of the reconstructed input.
             - z: Sampled latent space.
-
         """
         batch_size = len(x)
-        latent_mu, latent_sigma = self.encoder(x).chunk(2, dim=1) #both with size [batch_size, latent_size]
+        latent_mu, latent_sigma = self.encoder(x).chunk(2, dim=1)
         latent_sigma = softplus(latent_sigma)
         dist = Normal(latent_mu, latent_sigma)
-        z = dist.rsample([self.L])  # shape: [L, batch_size, latent_size]
+        z = dist.rsample([self.L])
         z = z.view(self.L * batch_size, self.latent_size)
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
         recon_sigma = softplus(recon_sigma)
         recon_mu = recon_mu.view(self.L, *x.shape)
         recon_sigma = recon_sigma.view(self.L, *x.shape)
-        return dict(latent_dist=dist, latent_mu=latent_mu,
-                    latent_sigma=latent_sigma, recon_mu=recon_mu,
-                    recon_sigma=recon_sigma, z=z)
+        return dict(
+            latent_dist=dist,
+            latent_mu=latent_mu,
+            latent_sigma=latent_sigma,
+            recon_mu=recon_mu,
+            recon_sigma=recon_sigma,
+            z=z
+        )
 
     def is_anomaly(self, x: torch.Tensor, alpha: float = 0.05) -> torch.Tensor:
         """
         Determines if input samples are anomalous based on a given threshold.
-        
+
         Args:
             x: Input tensor of shape (batch_size, num_features).
             alpha: Anomaly threshold. Values with probability lower than alpha are considered anomalous.
-        
+
         Returns:
-            A binary tensor of shape (batch_size,) where `True` represents an anomalous sample and `False` represents a 
-            normal sample.
+            A binary tensor of shape (batch_size,) where True represents an anomalous sample
+            and False represents a normal sample.
         """
         p = self.reconstructed_probability(x)
         return p < alpha
@@ -159,7 +164,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             pred = self.predict(x)
         recon_dist = Normal(pred['recon_mu'], pred['recon_sigma'])
         x = x.unsqueeze(0)
-        p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)  # vector of shape [batch_size]
+        p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)
         return p
 
     def generate(self, batch_size: int = 1) -> torch.Tensor:
@@ -170,8 +175,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             batch_size: Number of samples to generate.
 
         Returns:
-            A tensor of shape (batch_size, num_features) containing the generated
-            samples.
+            A tensor of shape (batch_size, num_features) containing the generated samples.
         """
         z = self.prior.sample((batch_size, self.latent_size))
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
@@ -187,22 +191,18 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             self.log('train/loss_kl', loss['kl'], prog_bar=False)
             self.log('train/loss_recon', loss['recon_loss'], prog_bar=False)
             self._log_norm()
-
         return loss
-    
 
     def validation_step(self, batch, batch_idx):
         x = batch
         loss = self.forward(x)
-        self.log('val/loss_epoch', loss['loss'], on_epoch=True)
-        self.log('val_kl', loss['kl'], self.global_step)
-        self.log('val_recon_loss', loss['recon_loss'], self.global_step)
-
+        self.log('val_loss_epoch', loss['loss'], on_epoch=True)
+        self.log('val_kl', loss['kl'], on_epoch=True)
+        self.log('val_recon_loss', loss['recon_loss'], on_epoch=True)
         return loss
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
-
 
     def _log_norm(self):
         norm1 = sum(p.norm(1) for p in self.parameters())
@@ -215,10 +215,16 @@ class VAEAnomalyTabular(VAEAnomalyDetection):
     def make_encoder(self, input_size, latent_size):
         """
         Simple encoder for tabular data.
-        If you want to feed image to a VAE make another encoder function with Conv2d instead of Linear layers.
-        :param input_size: number of input variables
-        :param latent_size: number of output variables i.e. the size of the latent space since it's the encoder of a VAE
-        :return: The untrained encoder model
+
+        If you want to feed image to a VAE make another encoder function with
+        Conv2d instead of Linear layers.
+
+        Args:
+            input_size: Number of input variables.
+            latent_size: Number of output variables (size of the latent space).
+
+        Returns:
+            The untrained encoder model.
         """
         return nn.Sequential(
             nn.Linear(input_size, 500),
@@ -226,22 +232,25 @@ class VAEAnomalyTabular(VAEAnomalyDetection):
             nn.Linear(500, 200),
             nn.ReLU(),
             nn.Linear(200, latent_size * 2)
-            # times 2 because this is the concatenated vector of latent mean and variance
         )
 
     def make_decoder(self, latent_size, output_size):
         """
         Simple decoder for tabular data.
-        :param latent_size: size of input latent space
-        :param output_size: number of output parameters. Must have the same value of input_size
-        :return: the untrained decoder
+
+        Args:
+            latent_size: Size of input latent space.
+            output_size: Number of output parameters. Must have the same value of input_size.
+
+        Returns:
+            The untrained decoder.
         """
         return nn.Sequential(
             nn.Linear(latent_size, 200),
             nn.ReLU(),
             nn.Linear(200, 500),
             nn.ReLU(),
-            nn.Linear(500, output_size * 2)  # times 2 because this is the concatenated vector of reconstructed mean and variance
+            nn.Linear(500, output_size * 2)
         )
 
 
