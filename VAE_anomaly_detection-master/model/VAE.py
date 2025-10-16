@@ -210,6 +210,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         self.log('norm1_params', norm1)
         self.log('norm1_grad', norm1_grad)
 
+
 class VAEAnomalyTabular(VAEAnomalyDetection):
 
     def make_encoder(self, input_size, latent_size):
