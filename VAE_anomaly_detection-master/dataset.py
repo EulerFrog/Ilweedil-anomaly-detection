@@ -22,7 +22,6 @@ def mnist_dataset(train=True) -> Dataset:
     return MNIST(root='./data', train=train, download=True, transform=None)
 
 class CSVDataset():
-
     def __init__(self):
       
         data1 = np.loadtxt('./data/test.csv', delimiter=',',
