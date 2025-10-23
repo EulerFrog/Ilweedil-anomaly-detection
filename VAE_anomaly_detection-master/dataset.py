@@ -49,39 +49,47 @@ class CSVDataset():
         # print(data1)
         num1 = 0
         num2 = 0
+        output = []
         for i in data1:
             num2 = 0
-            for j in i:
-                temp = float("".join(j.split(".")))
+            output.append([])
 
-                print(temp)
-                data1[num1,num2] = 1 / (1 + math.exp(0.001 * -temp))
-                # # linear constrain to 0 - 1
-                # if num2 == 0 or num2 == 2: # if source or dest ip
-                #     temp = temp / 2552552552550 # max ip addr
-                # elif num2 == 1 or num2 == 3: # port case
-                #     temp = temp / 65535 # max port #
-                # elif num2 == 4: # protocol
-                #     temp = temp / 17 # max
-                # elif num2 == 5: # l7 protocol
-                #     temp = temp / 244 # max 
-                # elif num2 == 6 or num2 == 7: # bytes in/out
-                #     temp = temp / 3000000000 # max observed
-                # elif num2 == 8 or num2 == 8: # packets in/out
-                #     temp = temp / 100000 # max observed
-                # data1[num1,num2] = temp
+            for j in i:
+                
+                temp = float("".join(j.split(".")))
+                if (num2 >= 4):
+
+                    print(temp)
+
+                    if (num2 == 4): # protocol
+                        temp = temp/17
+                    elif (num2 == 5): # l7 proto
+                        temp = temp/92
+                    elif (num2 == 6): # bytes in
+                        temp = temp/1000000000
+                    elif (num2 == 7): # bytes out
+                        temp = temp/1000000000
+                    elif (num2 == 8): # in pkts
+                        temp = temp/1000
+                    elif (num2 == 9): # out pkts
+                        temp = temp/1000
+                    elif (num2 == 10): # tcp flags
+                        temp = temp/50
+                    elif (num2 == 11): # duration (millis)
+                        temp = temp/1000000
+
+
+                    output[num1].append(temp)
 
                 num2 = num2 + 1
             num1 = num1 + 1
-        # print(data1)
-        data1 = data1.astype(float)
-        # print(data1)
+        output = np.asarray(output, dtype=np.float32)
 
-        self.x = torch.from_numpy(data1[:, :]).type(torch.float)
-        self.n_samples = data1.shape[0] 
+        self.x = torch.from_numpy(output[:, :]).type(torch.float)
+        self.n_samples = output.shape[0] 
 
-        print(self.x)
-        print(self.n_samples)
+        # print(self.x)
+        # print(self.n_samples)
     
     # support indexing such that dataset[i] can 
     # be used to get i-th sample

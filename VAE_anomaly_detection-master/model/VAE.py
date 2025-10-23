@@ -21,7 +21,9 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         latent_size: int,
         L: int = 10,
         lr: float = 1e-3,
-        log_steps: int = 1_000
+        log_steps: int = 1_000,
+        *args,
+        **kwargs
     ):
         """
         Initializes the VAEAnomalyDetection model.
@@ -42,6 +44,9 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         self.decoder = self.make_decoder(latent_size, input_size)
         self.prior = Normal(0, 1)
         self.log_steps = log_steps
+
+        # Save hyper parameters
+        self.save_hyperparameters()
 
     @abstractmethod
     def make_encoder(self, input_size: int, latent_size: int) -> nn.Module:
@@ -115,8 +120,19 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             - z: Sampled latent space.
         """
         batch_size = len(x)
-        latent_mu, latent_sigma = self.encoder(x).chunk(2, dim=1)
+        encoded_input = self.encoder(x)
+        # print("input")
+        # print(x)
+        # print("encoded input")
+        # print(encoded_input)
+        latent_mu, latent_sigma = encoded_input.chunk(2, dim=1)
+        # print("latent mu and sigma")
+        # print(latent_mu)
+        # print(latent_sigma)
+
         latent_sigma = softplus(latent_sigma)
+        # print(latent_sigma)
+        # print(latent_mu)
         dist = Normal(latent_mu, latent_sigma)
         z = dist.rsample([self.L])
         z = z.view(self.L * batch_size, self.latent_size)
@@ -146,7 +162,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             and False represents a normal sample.
         """
         p = self.reconstructed_probability(x)
-        return p < alpha
+        return p < alpha, p
 
     def reconstructed_probability(self, x: torch.Tensor) -> torch.Tensor:
         """
