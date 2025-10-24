@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime
 
+from utility import ModelInfo
+
 import torch
 import yaml
 from path import Path
@@ -116,9 +118,9 @@ def train():
     """
     args = get_args()
     print(args)
-    # input()
 
     experiment_folder = make_folder_run()
+
 
     with open(experiment_folder / 'config.yaml', 'w') as f:
         yaml.dump(args, f)
@@ -133,10 +135,6 @@ def train():
         lr=args.lr
     )
 
-    # print(model)
-    # print(model.latent_size)
-    # print(model.input_size)
-    # input()
 
     train_set = test_dataset()
     train_dloader = DataLoader(train_set, args.batch_size, shuffle=True)
@@ -164,32 +162,17 @@ def train():
 
     trainer.fit(model, train_dloader, val_dloader)
 
-"""
-    Function meant for testing a model's ability to detect anomalies
+    # When finished, return path to completed model at last checkpoint
+    return 
 
-
-"""
-def test(testDataset: Dataset, modelPath:str, alpha:float = 0.5):
-
-    # Get passed in arguments
-    args = get_args()
-
-    reloadedModel = VAEAnomalyTabular.load_from_checkpoint(checkpoint_path=modelPath)
-    datasetLoader = DataLoader(testDataset, args.batch_size, shuffle=True)
-
-    for i in datasetLoader:
-        print(i)
-        print(reloadedModel.is_anomaly(i, alpha))
-        input()
 
 def main():
     
-    # train()
-    test(
-        test_dataset(), 
-        "saved_models/2025-10-22_17-35-14/checkpoints/last.ckpt",
-        0.5
-        )
+    # test = ModelInfo("2025-10-22_17-35-14")
+    # test.LoadModel()
+    # test.TestModel(test_dataset())
+    train()
+
 
 if __name__ == '__main__':
     main()

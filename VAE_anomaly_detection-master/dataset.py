@@ -46,10 +46,10 @@ class CSVDataset():
       
         data1 = np.loadtxt('./data/NF-UNSW-NB15.csv', delimiter=',',
                            dtype=np.str_, skiprows=1)
-        # print(data1)
         num1 = 0
         num2 = 0
         output = []
+        outputLabels = []
         for i in data1:
             num2 = 0
             output.append([])
@@ -59,43 +59,50 @@ class CSVDataset():
                 temp = float("".join(j.split(".")))
                 if (num2 >= 4):
 
-                    print(temp)
-
                     if (num2 == 4): # protocol
                         temp = temp/17
+                        output[num1].append(temp)
                     elif (num2 == 5): # l7 proto
                         temp = temp/92
+                        output[num1].append(temp)
                     elif (num2 == 6): # bytes in
                         temp = temp/1000000000
+                        output[num1].append(temp)
                     elif (num2 == 7): # bytes out
                         temp = temp/1000000000
+                        output[num1].append(temp)
                     elif (num2 == 8): # in pkts
                         temp = temp/1000
+                        output[num1].append(temp)
                     elif (num2 == 9): # out pkts
                         temp = temp/1000
+                        output[num1].append(temp)
                     elif (num2 == 10): # tcp flags
                         temp = temp/50
+                        output[num1].append(temp)
                     elif (num2 == 11): # duration (millis)
                         temp = temp/1000000
-
-
-                    output[num1].append(temp)
+                        output[num1].append(temp)
+                    elif (num2 == 12): # duration (millis)
+                        outputLabels.append(num2)
 
                 num2 = num2 + 1
             num1 = num1 + 1
         output = np.asarray(output, dtype=np.float32)
 
         self.x = torch.from_numpy(output[:, :]).type(torch.float)
+        labels = np.asarray(outputLabels, dtype=np.float32)
+        self.labels = torch.from_numpy(labels).type(torch.float)
         self.n_samples = output.shape[0] 
-
-        # print(self.x)
-        # print(self.n_samples)
     
     # support indexing such that dataset[i] can 
     # be used to get i-th sample
     def __getitem__(self, index):
         return self.x[index]
       
+    def __getitemlabel__(self, index):
+        return self.labels[index]
+    
     # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
