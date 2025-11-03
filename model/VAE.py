@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 
-import pytorch_lightning as pl
 import torch
 from torch import nn
 from torch.distributions import Normal, kl_divergence
 from torch.nn.functional import softplus
 
 
-class VAEAnomalyDetection(pl.LightningModule, ABC):
+class VAEAnomalyDetection(nn.Module, ABC):
     """
     Variational Autoencoder (VAE) for anomaly detection.
 
@@ -21,7 +20,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         latent_size: int,
         L: int = 10,
         lr: float = 1e-3,
-        log_steps: int = 1_000,
         *args,
         **kwargs
     ):
@@ -33,7 +31,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             latent_size: Size of the latent space.
             L: Number of samples in the latent space to detect the anomaly.
             lr: Learning rate.
-            log_steps: Number of steps between each logging.
         """
         super().__init__()
         self.L = L
@@ -43,10 +40,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         self.encoder = self.make_encoder(input_size, latent_size)
         self.decoder = self.make_decoder(latent_size, input_size)
         self.prior = Normal(0, 1)
-        self.log_steps = log_steps
-
-        # Save hyper parameters
-        self.save_hyperparameters()
 
     @abstractmethod
     def make_encoder(self, input_size: int, latent_size: int) -> nn.Module:
@@ -121,13 +114,8 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         """
         batch_size = len(x)
         encoded_input = self.encoder(x)
-        # print(x)
-        # print(encoded_input)
         latent_mu, latent_sigma = torch.chunk(encoded_input, 2, dim=1)
-        # print(latent_sigma)
-        # print(latent_mu)
         latent_sigma = softplus(latent_sigma)
-        # print(latent_sigma)
         dist = Normal(latent_mu, latent_sigma)
         z = dist.rsample([self.L])
         z = z.view(self.L * batch_size, self.latent_size)
@@ -192,34 +180,6 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
         recon_sigma = softplus(recon_sigma)
         return recon_mu + recon_sigma * torch.rand_like(recon_sigma)
-    
-    
-    def training_step(self, batch, batch_idx):
-        x = batch
-        loss = self.forward(x)
-        if self.global_step % self.log_steps == 0:
-            self.log('train/loss', loss['loss'])
-            self.log('train/loss_kl', loss['kl'], prog_bar=False)
-            self.log('train/loss_recon', loss['recon_loss'], prog_bar=False)
-            self._log_norm()
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        x = batch
-        loss = self.forward(x)
-        self.log('val_loss_epoch', loss['loss'], on_epoch=True)
-        self.log('val_kl', loss['kl'], on_epoch=True)
-        self.log('val_recon_loss', loss['recon_loss'], on_epoch=True)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
-
-    def _log_norm(self):
-        norm1 = sum(p.norm(1) for p in self.parameters())
-        norm1_grad = sum(p.grad.norm(1) for p in self.parameters() if p.grad is not None)
-        self.log('norm1_params', norm1)
-        self.log('norm1_grad', norm1_grad)
 
 
 class VAEAnomalyTabular(VAEAnomalyDetection):

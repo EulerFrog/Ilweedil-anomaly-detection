@@ -172,3 +172,4 @@ lightning_logs
 tests
 .claude
 paper
+*.pdf

@@ -25,19 +25,17 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules"
-    ]
+]
+
 keywords = ["vae", "anomaly detection", "deep learning", "pytorch"]
 license = {text = "MIT"}
 readme = "readme.md"
 
 dependencies = [
-"path>=15.0",
-"torch>=1.8",
-"pytorch-lightning>=1.9",
-"PyYAML>=5.0",
-"tqdm>=4.0",
-"tensorboard>=0.20",
-"numpy>= 1.18",
+    "torch>=1.8",
+    "tqdm>=4.0",
+    "tensorboard>=0.20",
+    "numpy>= 1.18",
 ]
 
 [project.urls]
@@ -53,11 +51,10 @@ dev = [
 python = "3.10"
 dependencies = [
     "torch>=1.8",
-    "pytorch-lightning",
-    "path",
     "tensorboard",
     "numpy",
     "torchvision",
+    "tqdm",
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -68,11 +65,10 @@ train = "python train.py -i 100 -l 32 {args:train}"
 python = "3.10"
 dependencies = [
     "torch>=1.8",
-    "pytorch-lightning",
-    "path",
     "tensorboard",
     "numpy",
     "torchvision",
+    "tqdm",
 ]
 
 [tool.hatch.envs.cpu.env-vars]
@@ -83,11 +79,10 @@ PIP_EXTRA_INDEX_URL = "https://download.pytorch.org/whl/cpu"
 python = "python3"
 dependencies = [
     "torch>=1.8",
-    "pytorch-lightning",
-    "path",
     "tensorboard",
     "numpy",
     "torchvision",
+    "tqdm",
     "pytest",
 ]
 
