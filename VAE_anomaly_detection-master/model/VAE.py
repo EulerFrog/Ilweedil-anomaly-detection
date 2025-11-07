@@ -121,18 +121,13 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
         """
         batch_size = len(x)
         encoded_input = self.encoder(x)
-        print("input")
-        print(x)
-        print("encoded input")
-        print(encoded_input)
+        # print(x)
+        # print(encoded_input)
         latent_mu, latent_sigma = torch.chunk(encoded_input, 2, dim=1)
-        print("latent mu and sigma")
-        print(latent_mu)
-        print(latent_sigma)
-
+        # print(latent_sigma)
+        # print(latent_mu)
         latent_sigma = softplus(latent_sigma)
-        print(latent_sigma)
-        print(latent_mu)
+        # print(latent_sigma)
         dist = Normal(latent_mu, latent_sigma)
         z = dist.rsample([self.L])
         z = z.view(self.L * batch_size, self.latent_size)
@@ -162,7 +157,7 @@ class VAEAnomalyDetection(pl.LightningModule, ABC):
             and False represents a normal sample.
         """
         p = self.reconstructed_probability(x)
-        return p < alpha, p
+        return p < alpha
 
     def reconstructed_probability(self, x: torch.Tensor) -> torch.Tensor:
         """
