@@ -170,7 +170,6 @@ class ModelInfo:
 
             results.append(self.TestModel(data_records, data_record_labels))
 
-
         # Calculate aggregate of test results
         for test in results:
             for field in ModelInfo.test_fields:
@@ -186,7 +185,6 @@ class ModelInfo:
                 # Store sum of values in 'avg' to be divided later
                 if (test[field] != -1):
                     results_aggregates[field]["avg"] = results_aggregates[field]["avg"] + test[field]
-
         
         #   Calculate avg
         for field in ModelInfo.test_fields:
@@ -195,7 +193,6 @@ class ModelInfo:
                 results_aggregates[field]["avg"] = results_aggregates[field]["avg"] / len(results)
 
             # print(str(results_aggregates[field]["avg"]))
-
 
         # Write test results to file
         with open(results_output_path + ".csv", "w") as output_file:
@@ -258,8 +255,7 @@ class ModelInfo:
 
             # Close file and return
             output_file.close()
-                
-
+            
 
     def TestModel(self, test_dataset_records: Tensor, test_dataset_labels: Tensor, alpha:float = 0.5) -> dict:
         """
