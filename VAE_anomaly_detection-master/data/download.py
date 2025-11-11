@@ -24,7 +24,7 @@ def load_data(username, password):
                 ],
             }
         },
-        "size": 10
+        "size": 10000
     }
     
     # Send the request
@@ -47,7 +47,7 @@ def populate(raw_data, data):
         flow_dict = hit["_source"]
 
         for col in columns:
-            
+
             if col == "direction":
                 # 0 if to_server, 1 if to_client
                 data[col].append(0 if flow_dict["suricata"][col] == "to_server" else 1)
@@ -125,15 +125,16 @@ def one_hot(df):
     df_encoded = pd.concat([encoded_df, df], axis=1)
     # delete columns that we don't want anymore (duplicates)
     df_encoded = df_encoded.drop(categorical_columns, axis=1)
-    print(f"Encoded data : \n{df_encoded}")
+    #print(f"Encoded data : \n{df_encoded}")
 
     return df_encoded
 
 def min_max(df, col):
     col_min = df[col].min()
     col_max = df[col].max()
+    df[col] = (df[col] - col_min) / ((col_max - col_min) + 0.000000001)
 
-    return ((df[col] - col_min) / (col_max - col_min))
+    return df 
 
 def create_csvdata(data_dict):
     raw_data = data_dict["hits"]["hits"]
@@ -170,45 +171,12 @@ def create_csvdata(data_dict):
     # one hot encode our dataframe
     df = one_hot(df)
 
-#    categories = {
-#        "src_port": ["HTTP", "HTTPS", "SSH", "DNS", "DHCP", "SMTP", "SNMP", "RDP", "SQL", "FTP", "public", "private", "dynamic"],
-#        "dest_port": ["HTTP", "HTTPS", "SSH", "DNS", "DHCP", "SMTP", "SNMP", "RDP", "SQL", "FTP", "public", "private", "dynamic"],
-#        "protocol": ["tcp", "udp", "icmp", "ipv6-icmp", "gre", "esp", "other"],
-#    }
-#
-#    categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
-#    
-#    # Create encoder with fixed categories and ignore unseen
-#    encoder = OneHotEncoder(categories=[categories[col] for col in categorical_columns],
-#                            handle_unknown='ignore', sparse_output=False)
-#
-#    # fit and transform list values to columns in the encoder
-#    encoded = encoder.fit_transform(df[categorical_columns])
-#    # create one hot encoded df (only categorical columns)
-#    encoded_df = pd.DataFrame(encoded, columns=encoder.get_feature_names_out(categorical_columns))
-#    # concat with original df
-#    df_encoded = pd.concat([encoded_df, df], axis=1)
-#    # delete columns that we don't want anymore (duplicates)
-#    df_encoded = df_encoded.drop(categorical_columns, axis=1)
-#    print(f"Encoded data : \n{df_encoded}")
-
-    breakpoint()
-    
-    breakpoint()
-    breakpoint()
-    breakpoint()
-
     numeric_cols = ["bytes_toclient", "bytes_toserver", "pkts_toclient", "pkts_toserver", "duration"]
     # standardize bytes, pkts, duration
     for col in numeric_cols:
-        min_max(df, col)
-
-    breakpoint()
-    breakpoint()
-    breakpoint()
+        df = min_max(df, col)
 
     # write csv
-    df = pd.DataFrame(data)
     df.to_csv("data.csv", index=False)
 
 
