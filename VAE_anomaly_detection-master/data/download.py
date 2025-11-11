@@ -38,24 +38,28 @@ def load_data(username, password):
     return json.loads(response.text)
 
 def populate(raw_data, data):
-   
+  
     columns = data.keys()
 
     for hit in raw_data:
-        raw_data = raw_data["_source"]
+        
+        flow_dict = hit["_source"]
 
-        breakpoint()
         for col in columns:
+            
             if col == "direction":
-                data[col].append(raw_data[col])
-            else if col == "duration":
-                duration = (int(raw_data["event"]["end"]) - int(raw_data["event"]["start"])) / 1000 # convert from ms to sec
+                data[col].append(flow_dict["suricata"][col])
+            elif col == "duration":
+                duration = (int(flow_dict["event"]["end"]) - int(flow_dict["event"]["start"])) / 1000 # convert from ms to sec
                 data[col].append(duration)
-            else if col == "label":
-                data[col].append(0 if not raw_data["suricata"][col]) else 1)
+            elif col == "label":
+                data[col].append(0 if not flow_dict["suricata"]["alert"] else 1)
+            elif col == "protocol":
+                data[col].append(flow_dict[col][0])
             else:
-                data[col].append(raw_data["suricata"][col])
- 
+                data[col].append(flow_dict["suricata"]["flow"][col])
+
+
     return data
 
 def remap(data):
@@ -77,28 +81,31 @@ def remap(data):
         "21": "FTP",
     }
 
-    for idx, src_port, dest_port in enumerate(zip(data["src_port"], data["dest_port"])):
+    for idx, ports in enumerate(zip(data["src_port"], data["dest_port"])):
+        src_port, dest_port = ports
         if str(src_port) in common_ports.keys():
             data["src_port"][idx] = common_ports[str(src_port)]
-        else if src_port < 1024:
+        elif src_port < 1024:
             data["src_port"][idx] = "public"
-        else if src_port < 49152:
+        elif src_port < 49152:
             data["src_port"][idx] = "private"
-        else if src_port > 49151:
+        elif src_port > 49151:
             data["src_port"][idx] = "dynamic"
 
         if str(dest_port) in common_ports.keys():
             data["dest_port"][idx] = common_ports[str(dest_port)]
-        else if dest_port < 1024:
+        elif dest_port < 1024:
             data["dest_port"][idx] = "public"
-        else if dest_port < 49152:
+        elif dest_port < 49152:
             data["dest_port"][idx] = "private"
-        else if dest_port > 49151:
+        elif dest_port > 49151:
             data["dest_port"][idx] = "dynamic"
+
+    breakpoint()
 
     return data
 
-def create_csvdata(data):
+def create_csvdata(data_dict):
     raw_data = data_dict["hits"]["hits"]
     
     #benign_flows = [hit for hit in data
@@ -106,8 +113,6 @@ def create_csvdata(data):
     
     #print(f"Found {len(benign_flows)} benign flows")
     #print(f"Found {len(data) - len(benign_flows)} alert flows")
-
-    breakpoint()
 
     data = {
         "src_port": [],
@@ -126,12 +131,17 @@ def create_csvdata(data):
 
     data = populate(raw_data, data) 
 
+    breakpoint()
+    
     # one hot encode ports, direction, protocol
     # remap port numbers to categories for one hot encoding
     data = remap(data)
 
+    breakpoint()
+
     df = pd.DataFrame(data)
     # standardize bytes, pkts, duration
+    [0-1]
 
     # write csv
     df = pd.DataFrame(data)
@@ -150,7 +160,7 @@ def main():
     data_dict = load_data(username, password)
     
     # create csv of useful data
-    create_csvdata(data_dict["hits"]["hits"])
+    create_csvdata(data_dict)
 
  
 if __name__ == "__main__":
