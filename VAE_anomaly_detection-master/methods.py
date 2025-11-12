@@ -259,7 +259,7 @@ def Train_Test(dataset: VAEDataset):
     # Locals
     args = None
     test_model_path = ""
-    test_folder_name = './test_folder'
+    test_folder_name = os.getcwd() + '\\test_folder'
     str_holder = ""
     str_holder_2 = ""
     i = 1
@@ -268,13 +268,13 @@ def Train_Test(dataset: VAEDataset):
     args = get_args()
 
     # Create "test_folder" if it doesn't exist already
-    if os.path.isdir(test_folder_name):
+    if not os.path.isdir(test_folder_name):
         os.mkdir(test_folder_name)
 
     # Within test_folder, check for models of the same name as this test. If they exist, create a new
     #   name for the model that isn't seen in the folder.
-    test_model_path = test_folder_name + "/" + args.test_name
-    str_holder= test_model_path
+    test_model_path = test_folder_name + "\\" + args.test_name
+    str_holder = test_model_path
     while os.path.isdir(str_holder):
         str_holder = test_model_path + " " + str(i)
         i = i + 1

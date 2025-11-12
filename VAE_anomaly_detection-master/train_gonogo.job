@@ -1,0 +1,21 @@
+universe = vanilla
+executable = ./train_gonogo.sh
+
+# Resource requests (GPU training)
+request_cpus = 2
+request_gpus = 1
+request_memory = 8GB
+
+# Output files (organized in condor/logs)
+output = logs/vae_$(Process).out
+error  = logs/vae_$(Process).err
+log    = logs/vae_$(Process).log
+
++CSCI_GrpDesktop = true
+
+max_materialize = 50
+
+# Pass arguments from args file
+# Format: 
+arguments = $(args)
+Queue arguments from ./train_gonogo_args.txt

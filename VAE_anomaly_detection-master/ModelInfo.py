@@ -63,28 +63,26 @@ class ModelInfo:
             line = line.rstrip()
             line_tokens = line.split(": ")
 
-            match (line_tokens[0]):
-
-                case 'batch_size':
-                    self.batch_size = float(line_tokens[1])
-                case 'device':
-                    self.device = line_tokens[1]
-                case 'epochs':
-                    self.epochs = int(line_tokens[1])
-                case 'input_size':
-                    self.input_size = int(line_tokens[1])
-                case 'latent_size':
-                    self.latent_size = int(line_tokens[1])
-                case 'lr':
-                    self.lr = float(line_tokens[1])
-                case 'no_progress_bar':
-                    self.no_progress_bar = bool(line_tokens[1])   
-                case 'num_resamples':
-                    self.num_resamples = int(line_tokens[1])       
-                case 'steps_log_loss':
-                    self.steps_log_loss = float(line_tokens[1])           
-                case 'steps_log_norm_params':
-                    self.steps_log_norm_params = float(line_tokens[1])    
+            if (line_tokens[0] == 'batch_size'):
+                self.batch_size = float(line_tokens[1])
+            elif (line_tokens[0] == 'device'):
+                self.device = line_tokens[1]
+            elif (line_tokens[0] == 'epochs'):
+                self.epochs = int(line_tokens[1])
+            elif (line_tokens[0] == 'input_size'):
+                self.input_size = float(line_tokens[1])
+            elif (line_tokens[0] == 'latent_size'):
+                self.latent_size = int(line_tokens[1])
+            elif (line_tokens[0] == 'lr'):
+                self.lr = int(line_tokens[1])
+            elif (line_tokens[0] == 'no_progress_bar'):
+                self.no_progress_bar = int(line_tokens[1])
+            elif (line_tokens[0] == 'num_resamples'):
+                self.num_resamples = int(line_tokens[1])       
+            elif (line_tokens[0] == 'steps_log_loss'):
+                self.steps_log_loss = float(line_tokens[1])           
+            elif (line_tokens[0] == 'steps_log_norm_params'):
+                self.steps_log_norm_params = float(line_tokens[1])     
 
             line = yaml.readline()
 
@@ -195,7 +193,7 @@ class ModelInfo:
             # print(str(results_aggregates[field]["avg"]))
 
         # Write test results to file
-        with open(results_output_path + ".csv", "w") as output_file:
+        with open(results_output_path + ".csv", "w+") as output_file:
 
             # Write name of test
             output_file.write(test_name + ',\n')

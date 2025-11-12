@@ -1,0 +1,11 @@
+test shell 1,
+Test rounds:,1,
+Batch size, Latent size, Input size, Learning rate, Epochs, Num resamples, Alpha,
+32.0,6,8,0.01,1,5,0.5,
+
+ ,FN,FP,TN,TP,F1,Accuracy,Precision,Recall,F1,
+Avg,1.0,0.0,31.0,0.0,0.0,0.96875,0.0,0.0,0.0,
+Min,1,0,31,0,-1,0.96875,-1,0.0,-1,
+Max,1,0,31,0,-1,0.96875,-1,0.0,-1,
+,
+Test 1,1,0,31,0,-1,0.96875,-1,0.0,-1,
