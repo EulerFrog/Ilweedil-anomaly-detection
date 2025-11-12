@@ -47,6 +47,13 @@ def get_args() -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '--test-name', 
+        type=str,
+        required=True,
+        dest='test_name',
+        help='Name of the test'
+    )
+    parser.add_argument(
         '--input-size', '-i',
         type=int,
         required=True,
@@ -96,6 +103,20 @@ def get_args() -> argparse.Namespace:
         help='Learning rate'
     )
     parser.add_argument(
+        '--num-tests',
+        type=int,
+        dest='num_tests',
+        default=5,
+        help='Number of tests run during model testing'
+    )
+    parser.add_argument(
+        '--alpha',
+        type=float,
+        dest='alpha',
+        default=0.5,
+        help='Threshold for VAE when determining whether a record is an anomaly or not'
+    )
+    parser.add_argument(
         '--no-progress-bar',
         action='store_true',
         dest='no_progress_bar'
@@ -117,11 +138,10 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def train(name_of_model, train_dataset, validation_dataset):
+def train(args, name_of_model, train_dataset, validation_dataset):
     """
     Main function to train the VAE model
     """
-    args = get_args()
     print(args)
 
     experiment_folder = make_folder_run(name_of_model)
@@ -220,92 +240,149 @@ def train_with_args(name_of_model: str, train_dataset:VAEDataset, args: dict):
     return 
 
 
-def MassHyperparameterTest(dataset: VAEDataset, hyper_parameter_file_path: str, series_name: str, number_of_tests: int, test_output_folder_path: str, test_output_file_name: str):
+def Train_Test(dataset: VAEDataset):
     """
-        Given a dataset for testing, a path to a file of formatted hyper parameters, and a name for the test series, 
-        this method creates, tests, and outputs VAEs using the inputted dataset for each hyper parameter set.
-        For each hyper parameter set, "number of tests" tests are ran on the produced model using the dataset for testing.
+        Trains and then tests a model based on args inputted to python. 
 
-        Expects hyper parameters to be in csv format of:
-        input_size, latent_size, batch_size, num_resamples, epochs, lr, alpha
+        Outputs the test to the "tests_folder" in the cwd.
 
-        Where:
-            input_size: int (required)
-            latent_size: int (required)
-            batch_size: int (optional, default = 32)
-            num_resamples: int (optional, default = 10)
-            epochs: int (optional, default = 100)
-            lr: float (optional, default = 0.001)
-            alpha: float (optional, default = 0.5)
-  
+        *In the case that tests share the same name, an increasing counter is added to the name of the test:
+        e.g. (for test name of "test")
+            test
+            test 1
+            test 2
+            .
+            .
+            test n
     """
 
     # Locals
     args = None
-    tokens = []
-    i = 0
-    hyperparam_set = 1
-    model_instance_name = ""
+    test_model_path = ""
+    test_folder_name = os.getcwd() + '\\test_folder'
+    str_holder = ""
+    str_holder_2 = ""
+    i = 1
 
-    # Make a directory for test output
-    if (not os.path.isdir(test_output_folder_path)):
-        os.mkdir(test_output_folder_path)
+    # Get arguments
+    args = get_args()
 
-    # For each line of hyper parameters, run a test
-    with open(hyper_parameter_file_path) as file:
-        for line in file:
+    # Create "test_folder" if it doesn't exist already
+    if not os.path.isdir(test_folder_name):
+        os.mkdir(test_folder_name)
+
+    # Within test_folder, check for models of the same name as this test. If they exist, create a new
+    #   name for the model that isn't seen in the folder.
+    test_model_path = test_folder_name + "\\" + args.test_name
+    str_holder = test_model_path
+    while os.path.isdir(str_holder):
+        str_holder = test_model_path + " " + str(i)
+        i = i + 1
+    test_model_path = str_holder    
+    if (i > 1):
+        args.test_name = args.test_name + " " + str(i)
+
+    # Train the model
+    train(args, args.test_name, dataset, dataset)
+
+    # Test the model
+    model = ModelInfo(args.test_name)
+    model.LoadModel()
+    model.MassTestModel(
+        dataset, 
+        args.num_tests, 
+        test_model_path, 
+        args.test_name
+        )
+
+
+
+# def MassHyperparameterTest(dataset: VAEDataset, hyper_parameter_file_path: str, series_name: str, number_of_tests: int, test_output_folder_path: str, test_output_file_name: str):
+#     """
+#         Given a dataset for testing, a path to a file of formatted hyper parameters, and a name for the test series, 
+#         this method creates, tests, and outputs VAEs using the inputted dataset for each hyper parameter set.
+#         For each hyper parameter set, "number of tests" tests are ran on the produced model using the dataset for testing.
+
+#         Expects hyper parameters to be in csv format of:
+#         input_size, latent_size, batch_size, num_resamples, epochs, lr, alpha
+
+#         Where:
+#             input_size: int (required)
+#             latent_size: int (required)
+#             batch_size: int (optional, default = 32)
+#             num_resamples: int (optional, default = 10)
+#             epochs: int (optional, default = 100)
+#             lr: float (optional, default = 0.001)
+#             alpha: float (optional, default = 0.5)
+  
+#     """
+
+#     # Locals
+#     args = None
+#     tokens = []
+#     i = 0
+#     hyperparam_set = 1
+#     model_instance_name = ""
+
+#     # Make a directory for test output
+#     if (not os.path.isdir(test_output_folder_path)):
+#         os.mkdir(test_output_folder_path)
+
+#     # For each line of hyper parameters, run a test
+#     with open(hyper_parameter_file_path) as file:
+#         for line in file:
             
-            # Initialize hyper parameters
-            #   Tokenize string
-            line = line.replace("\n", "")
-            tokens = line.split(",")
-            #   Init args
-            args = {
-                "input_size": -1,
-                "latent_size": -1,
-                "batch_size": 32,
-                "num_resamples": 10,
-                "epochs": 100,
-                "lr": 0.001,
-                "alpha": 0.5,
-                "device":"cpu",
-                "steps_log_loss":1000,
-                "no_progress_bar":True,
-                "steps_log_norm_params":1000
-            }
-            #   Init hyperparameters based on ingested string
-            i = 0
-            for token in tokens:
+#             # Initialize hyper parameters
+#             #   Tokenize string
+#             line = line.replace("\n", "")
+#             tokens = line.split(",")
+#             #   Init args
+#             args = {
+#                 "input_size": -1,
+#                 "latent_size": -1,
+#                 "batch_size": 32,
+#                 "num_resamples": 10,
+#                 "epochs": 100,
+#                 "lr": 0.001,
+#                 "alpha": 0.5,
+#                 "device":"cpu",
+#                 "steps_log_loss":1000,
+#                 "no_progress_bar":True,
+#                 "steps_log_norm_params":1000
+#             }
+#             #   Init hyperparameters based on ingested string
+#             i = 0
+#             for token in tokens:
 
-                if i == 0:  # input size 
-                    args["input_size"] = int(token)
-                elif i == 1:    # latent size
-                    args["latent_size"] = int(token)
-                elif i == 2:    # batch size
-                    args["batch_size"] = int(token)
-                elif i == 3:    # num resamples
-                    args["num_resamples"] = int(token)                   
-                elif i == 4:    # epochs
-                    args["epochs"] = int(token)                   
-                elif i == 5:    # lr
-                    args["lr"] = float(token)    
-                elif i == 6:    # alpha
-                    args["alpha"] = float(token)    
+#                 if i == 0:  # input size 
+#                     args["input_size"] = int(token)
+#                 elif i == 1:    # latent size
+#                     args["latent_size"] = int(token)
+#                 elif i == 2:    # batch size
+#                     args["batch_size"] = int(token)
+#                 elif i == 3:    # num resamples
+#                     args["num_resamples"] = int(token)                   
+#                 elif i == 4:    # epochs
+#                     args["epochs"] = int(token)                   
+#                 elif i == 5:    # lr
+#                     args["lr"] = float(token)    
+#                 elif i == 6:    # alpha
+#                     args["alpha"] = float(token)    
 
-                i = i + 1
+#                 i = i + 1
 
-            print(args)
+#             print(args)
 
-            #   Train model based on dataset and hyper parameters
-            model_instance_name = series_name + " " + str(hyperparam_set)
-            train_with_args(model_instance_name, dataset, args)
+#             #   Train model based on dataset and hyper parameters
+#             model_instance_name = series_name + " " + str(hyperparam_set)
+#             train_with_args(model_instance_name, dataset, args)
 
-            #   Test model based on dataset
-            model = ModelInfo(model_instance_name)
-            model.LoadModel()
-            model.MassTestModel(dataset, number_of_tests, test_output_folder_path + "/" + test_output_file_name + "_" + str(hyperparam_set), "Model instance" + model_instance_name)
+#             #   Test model based on dataset
+#             model = ModelInfo(model_instance_name)
+#             model.LoadModel()
+#             model.MassTestModel(dataset, number_of_tests, test_output_folder_path + "/" + test_output_file_name + "_" + str(hyperparam_set), "Model instance" + model_instance_name)
 
-            # Increment hyper parameter set
-            hyperparam_set = hyperparam_set + 1
+#             # Increment hyper parameter set
+#             hyperparam_set = hyperparam_set + 1
 
 

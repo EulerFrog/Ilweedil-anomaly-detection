@@ -177,6 +177,7 @@ class CSVDataset(VAEDataset):
         output_tensor = Tensor()
         data_record_tensor = []
         label_tensor = []
+        print("From CSVDataset: Get batch")
 
         # Shuffle a list of indexes. Indexes from index 0 to 'batch size' will be returned
         indexes = np.arange(0, self.__len__())
@@ -188,12 +189,19 @@ class CSVDataset(VAEDataset):
             data_record_tensor.append(self.__getitem__(indexes[i]))
             label_tensor.append(self.__getitemlabel__(indexes[i]))
             i = i + 1            
+        print("     - Batch unstacked. Data then labels")
+        print(data_record_tensor)
+        print(label_tensor)
 
         # Convert lists to tensors and stack
         data_record_tensor = torch.stack(data_record_tensor)
         label_tensor = torch.stack(label_tensor)
         output_tensor = [data_record_tensor, label_tensor]
 
+        print("     - Batch stacked. Data then labels")
+        print(data_record_tensor)
+        print(label_tensor)
+        print("******************")
         return output_tensor
       
     def __getitemlabel__(self, index) -> int:
