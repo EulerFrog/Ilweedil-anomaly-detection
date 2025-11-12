@@ -50,12 +50,12 @@ def populate(raw_data, data):
 
             if col == "direction":
                 # 0 if to_server, 1 if to_client
-                data[col].append(0 if flow_dict["suricata"][col] == "to_server" else 1)
+                data[col].append(0.0 if flow_dict["suricata"][col] == "to_server" else 1.0)
             elif col == "duration":
                 duration = (int(flow_dict["event"]["end"]) - int(flow_dict["event"]["start"])) / 1000 # convert from ms to sec
                 data[col].append(duration)
             elif col == "label":
-                data[col].append(0 if not flow_dict["suricata"]["alert"] else 1)
+                data[col].append(0.0 if not flow_dict["suricata"]["alert"] else 1.0)
             elif col == "protocol":
                 data[col].append(flow_dict[col][0])
             else:
