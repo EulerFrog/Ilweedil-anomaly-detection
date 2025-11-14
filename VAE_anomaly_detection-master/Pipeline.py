@@ -234,5 +234,3 @@ def train_test(dataset: VAEDataset):
         test_model_path, 
         args.test_name
         )
-
-

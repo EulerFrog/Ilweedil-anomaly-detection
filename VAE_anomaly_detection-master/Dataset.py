@@ -285,6 +285,7 @@ class CSVDataset(VAEDataset):
     
     def __getinputsize__(self):
         return self.labels.shape[1]
+    
     # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples

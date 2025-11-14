@@ -264,7 +264,7 @@ def stat_netflow_dataset():
 
             if (aggregateInformation[i]["type"] == "numerical"):
 
-                # Calculate sum (later to turn into avg)
+                # Calculate sum (later to turn into avg) 
                 aggregateInformation[i]["information"]["avg"] = aggregateInformation[i]["information"]["avg"] + row[i]
 
                 # Calculate min
