@@ -15,6 +15,11 @@ conda create --name cow
 ../../anaconda3/bin/pip install pyyaml
 ../../anaconda3/bin/pip install pytorch-lightning
 ../../anaconda3/bin/pip install path
+../../anaconda3/bin/pip install pandas
+../../anaconda3/bin/pip install scikit-learn
+../../anaconda3/bin/pip install requests
+
+
 
 
 

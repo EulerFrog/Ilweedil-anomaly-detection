@@ -7,14 +7,13 @@ set -e  # Exit on error
 
 # Parse arguments
 EXPERIMENT_NAME=$1
-INPUT_SIZE=$2   
-LATENT_SIZE=$3
-BATCH_SIZE=$4
-NUM_RESAMPLES=$5
-EPOCHS=$6
-LEARNING_RATE=$7
-ALPHA=$8
-NUM_TESTS=$9
+LATENT_SIZE=$2
+BATCH_SIZE=$3
+NUM_RESAMPLES=$4
+EPOCHS=$5
+LEARNING_RATE=$6
+ALPHA=$7
+NUM_TESTS=$8
     
 # experiment_name, input_size, latent_size, batch_size, num_resamples, epochs, lr, alpha
 
@@ -26,7 +25,6 @@ echo "========================================"
 echo "CSCI 597L VAE IDS Training Job"
 echo "========================================"
 echo "Experiment: $EXP_NAME"
-echo "Input size: $INPUT_SIZE"
 echo "Latent size: $LATENT_SIZE"
 echo "Batch size: $BATCH_SIZE"
 echo "Num resamples: $NUM_RESAMPLES"
@@ -48,7 +46,6 @@ echo ""
 echo "Starting training..."
 ../../anaconda3/bin/python ./main.py \
     --test-name ${EXP_NAME} \
-    --input-size ${INPUT_SIZE} \
     --latent-size ${LATENT_SIZE} \
     --num-resamples ${NUM_RESAMPLES} \
     --epochs ${EPOCHS} \

@@ -2,32 +2,32 @@ import os
 from pathlib import Path
 
 from torch import Tensor
-from dataset import CSVDataset, VAEDataset
+from Dataset import CSVDataset, VAEDataset
 from model.VAE import VAEAnomalyTabular
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-"""
-    Class that provides information about models created.
-        - Can generate paths to a model and particular epochs within that model.
-        - Can also provide information on the hyperparameters used when training a model.
-"""
 class ModelInfo:
-
+    """
+        Class that provides information about models created.
+            - Can generate paths to a model and particular epochs within that model.
+            - Can also provide information on the hyperparameters used when training a model.
+    """
     # Fields used in testing
     test_fields = ["FN", "FP", "TN", "TP", "F1", "Accuracy", "Precision", "Recall", "F1"]
 
-    """
-        ModelInfo constructor. 
-
-        Takes a model_id as an input, representing the name of the folder containing the model
-        in "saved_models"
-    """
+    
     def __init__(
         self,
-        model_id: str 
+        model_id: str,
+        model_input_size: int 
     ):
-        
+        """
+            ModelInfo constructor. 
+
+            Takes a model_id as an input, representing the name of the folder containing the model
+            in "saved_models"
+        """    
         # Define fields
         self.model_id = model_id
         self.model = None
@@ -35,7 +35,7 @@ class ModelInfo:
         self.batch_size = None
         self.device = None
         self.epochs = None
-        self.input_size = None
+        self.input_size = model_input_size
         self.latent_size = None
         self.lr = None
         self.no_progress_bar = None
@@ -69,14 +69,12 @@ class ModelInfo:
                 self.device = line_tokens[1]
             elif (line_tokens[0] == 'epochs'):
                 self.epochs = int(line_tokens[1])
-            elif (line_tokens[0] == 'input_size'):
-                self.input_size = float(line_tokens[1])
             elif (line_tokens[0] == 'latent_size'):
                 self.latent_size = int(line_tokens[1])
             elif (line_tokens[0] == 'lr'):
-                self.lr = int(line_tokens[1])
+                self.lr = float(line_tokens[1])
             elif (line_tokens[0] == 'no_progress_bar'):
-                self.no_progress_bar = int(line_tokens[1])
+                self.no_progress_bar = bool(line_tokens[1])
             elif (line_tokens[0] == 'num_resamples'):
                 self.num_resamples = int(line_tokens[1])       
             elif (line_tokens[0] == 'steps_log_loss'):
@@ -159,10 +157,16 @@ class ModelInfo:
                 "avg":0
             }
 
-        # Perform tests
+        # Perform tests. For each test round, do a test of non-anomylous and anomylous data
         for i in range(0, test_rounds):
             
-            batch = dataset.__getbatch__(self.batch_size)
+            batch = dataset.__getbatch__(self.batch_size, label=0)
+            data_records = batch[0]
+            data_record_labels = batch[1]
+
+            results.append(self.TestModel(data_records, data_record_labels))
+
+            batch = dataset.__getbatch__(self.batch_size, label=1)
             data_records = batch[0]
             data_record_labels = batch[1]
 
@@ -170,19 +174,21 @@ class ModelInfo:
 
         # Calculate aggregate of test results
         for test in results:
-            for field in ModelInfo.test_fields:
 
-                # Calculate min
-                if (test[field] < results_aggregates[field]["min"] or results_aggregates[field]["min"] == -1):
-                    results_aggregates[field]["min"] = test[field]
+            if (test != {}):
+                for field in ModelInfo.test_fields:
 
-                # Calculate max
-                if (test[field] > results_aggregates[field]["max"] or results_aggregates[field]["max"] == -1):
-                    results_aggregates[field]["max"] = test[field]
+                    # Calculate min
+                    if (test[field] < results_aggregates[field]["min"] or results_aggregates[field]["min"] == -1):
+                        results_aggregates[field]["min"] = test[field]
 
-                # Store sum of values in 'avg' to be divided later
-                if (test[field] != -1):
-                    results_aggregates[field]["avg"] = results_aggregates[field]["avg"] + test[field]
+                    # Calculate max
+                    if (test[field] > results_aggregates[field]["max"] or results_aggregates[field]["max"] == -1):
+                        results_aggregates[field]["max"] = test[field]
+
+                    # Store sum of values in 'avg' to be divided later
+                    if (test[field] != -1):
+                        results_aggregates[field]["avg"] = results_aggregates[field]["avg"] + test[field]
         
         #   Calculate avg
         for field in ModelInfo.test_fields:
@@ -345,8 +351,8 @@ class ModelInfo:
         test_dataset_labels_size = test_dataset_labels.size()
         if (test_dataset_records_size[0] != self.batch_size or test_dataset_records_size[1] != self.input_size):
             print("Error - Could not test dataset.")
-            print("For record tensor, expected size of: [" + self.batch_size + "," + self.input_size + "]")
-            print("Got size of: " + test_dataset_records_size)
+            print("For record tensor, expected size of: [" + str(self.batch_size) + "," + str(self.input_size) + "]")
+            print("Got size of: " + str(test_dataset_records_size))
             return {}
         if (test_dataset_labels_size[0] != self.batch_size):
             print("Error - Could not test dataset.")
