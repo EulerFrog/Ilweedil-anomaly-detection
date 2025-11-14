@@ -18,7 +18,6 @@ from torch.utils.data import Dataset, TensorDataset
 ROOT = Path(__file__).parent
 SAVED_MODELS = ROOT / 'saved_models'
 
-
 def make_folder_run(name=None) -> Path:
     """
     Get the folder where to store the experiment.
@@ -36,7 +35,6 @@ def make_folder_run(name=None) -> Path:
     checkpoint_folder = SAVED_MODELS / folder_name
     checkpoint_folder.makedirs_p()
     return checkpoint_folder
-
 
 def get_args() -> argparse.Namespace:
     """
@@ -130,7 +128,6 @@ def get_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def train(args: dict, name_of_model: str, train_dataset:VAEDataset, validation_dataset: VAEDataset):
     """
     Main function to train the VAE model
@@ -183,7 +180,7 @@ def train(args: dict, name_of_model: str, train_dataset:VAEDataset, validation_d
     # When finished, return path to completed model at last checkpoint
     return 
 
-def Train_Test(dataset: VAEDataset):
+def train_test(dataset: VAEDataset):
     """
         Trains and then tests a model based on args inputted to python. 
 
