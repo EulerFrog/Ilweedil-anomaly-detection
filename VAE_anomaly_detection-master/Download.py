@@ -177,8 +177,7 @@ def create_csvdata(data_dict):
         df = min_max(df, col)
 
     # write csv
-    df.to_csv("data.csv", index=False)
-
+    df.to_csv("./data/data.csv", index=False)
 
 def download_netflow_dataset():
     if len(sys.argv) != 3:
@@ -193,4 +192,106 @@ def download_netflow_dataset():
     
     # create csv of useful data
     create_csvdata(data_dict)
+
+def stat_netflow_dataset():
+
+    # Locals
+    df = None
+    labels = None
+    size = 0
+
+    aggregateInformation = [] # represents array of information related to columns
+    # Format of entries in the format of:
+    """
+        {
+            "column_name": str # represents the name of the column the entry represents
+            "type": str # represents the type of data the column holds. "categorical" indicates values are 0 or 1 while "numerical" indicates values are any non-zero real number
+            "information": ---- # holds information related to the column
+        }
+
+        If type is "categorical" information is a number, representing the total instances of the category occuring in the dataset
+
+        If type is "numerical" information is a dictionary with aggregate information on the numerical data of the column in the form:
+        {
+            "avg":float,
+            "min":float,
+            "max":float
+        }
+
+    """
+
+    nonCategoricalColumns = [   # Columns are assumed to be categorical unless specified to be numerical here
+        'bytes_toclient',
+        'pkts_toclient',
+        'bytes_toserver',
+        'pkts_toserver',
+        'duration'
+    ]
+
+
+    df = pd.read_csv("./data/data.csv")
+    labels = df.columns
+    df = df.to_numpy()
+    
+    # For each label, initialize them in the aggregateInformation dict
+    for i in range(0, len(labels)):
+        if labels[i] in nonCategoricalColumns:
+            aggregateInformation.append({
+                "column_name":labels[i],
+                "type":"numerical",
+                "information":{
+                    "avg":0,
+                    "min":-1,
+                    "max":-1
+                }
+            })
+        else:
+            aggregateInformation.append({
+                "column_name":labels[i],
+                "type":"categorical",
+                "information":0
+            })
+
+    # Calculate aggregate information of each column
+    #   Gather information on each column
+    for row in df:
+        size = size + 1
+        for i in range(0,len(row)):
+
+            if (aggregateInformation[i]["type"] == "categorical"):
+                # Calculate sum
+                aggregateInformation[i]["information"] = aggregateInformation[i]["information"] + row[i]
+
+            if (aggregateInformation[i]["type"] == "numerical"):
+
+                # Calculate sum (later to turn into avg)
+                aggregateInformation[i]["information"]["avg"] = aggregateInformation[i]["information"]["avg"] + row[i]
+
+                # Calculate min
+                if (aggregateInformation[i]["information"]["min"] > row[i] or aggregateInformation[i]["information"]["min"] == -1):
+                    aggregateInformation[i]["information"]["min"] = row[i]
+
+                # Calculate max
+                if (aggregateInformation[i]["information"]["max"] < row[i] or aggregateInformation[i]["information"]["max"] == -1):
+                    aggregateInformation[i]["information"]["max"] = row[i]
+
+    # Output results to output file in the data folder
+    with open("./data/data_stat" + ".csv", "w+") as output_file:
+
+        # output results in form "column_name, {information}" for each column (allowing a new line per column)
+        for entry in aggregateInformation:
+            
+            output_file.write(entry["column_name"] + ",")
+
+            if (entry["type"] == "numerical"):
+                output_file.write("avg: " + str(entry["information"]["avg"]/size) + ",")
+                output_file.write("min: " + str(entry["information"]["min"]) + ",")
+                output_file.write("max: " + str(entry["information"]["max"]) + ",\n")
+
+            if (entry["type"] == "categorical"):
+                output_file.write("total instances: " + str(entry["information"]) + ",")
+                output_file.write("appearance ratio: " + str(entry["information"]/size) + ",\n")
+
+
+
 
