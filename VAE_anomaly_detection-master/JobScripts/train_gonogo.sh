@@ -46,7 +46,7 @@ echo ""
 
 # Run training
 echo "Starting training..."
-../anaconda3/bin/python ./main.py \
+../../anaconda3/bin/python ./main.py \
     --test-name ${EXP_NAME} \
     --input-size ${INPUT_SIZE} \
     --latent-size ${LATENT_SIZE} \
