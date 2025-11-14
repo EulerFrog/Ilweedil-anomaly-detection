@@ -7,38 +7,8 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset
 from torchvision.datasets import MNIST
+import pandas as pd
 
-
-def rand_dataset(num_rows=600, num_columns=20) -> Dataset:
-    return TensorDataset(torch.rand(num_rows, num_columns))
-
-
-class MNISTDataset(Dataset):
-    """MNIST dataset wrapper for VAE (returns only images as flattened vectors)"""
-
-    def __init__(self, train=True):
-        self.mnist = MNIST(root='./data', train=train, download=True, transform=None)
-
-    def __getitem__(self, index):
-        img, _ = self.mnist[index]
-        img_tensor = torch.tensor(np.array(img), dtype=torch.float32).flatten() / 255.0
-        return img_tensor
-
-    def __len__(self):
-        return len(self.mnist)
-
-
-def mnist_dataset(train=True) -> Dataset:
-    """
-    Returns the MNIST dataset for training or testing.
-
-    Args:
-        train (bool): If True, returns the training dataset. Otherwise, returns the testing dataset.
-
-    Returns:
-        Dataset: The MNIST dataset.
-    """
-    return MNISTDataset(train=train)
 
 class VAEDataset():
     """
@@ -77,13 +47,14 @@ class VAEDataset():
         pass
 
     @abstractmethod
-    def __getbatch__(self, batch_size:int) -> list:
+    def __getbatch__(self, batch_size:int, label:int) -> list:
         """
             Expects batch_size to be 1 <= index <= self.__ln__() 
 
             This method generates a batch of size "batch_size" of shuffled data records from the VAE dataset. 
             Then, it returns it in the form of [records, labels] where "records" is the random_list 
-            of data records and "labels" is the parallel list of labels of each record. 
+            of data records and "labels" is the parallel list of labels of each record. Each entry in the batch is to
+            have a label of "label"
 
             *Both "records" and "labels" are tensors based
         """
@@ -105,8 +76,101 @@ class VAEDataset():
         """
         pass
 
-class CSVDataset(VAEDataset):
+    @abstractmethod
+    def __getinputsize__(self):
+        """
+            Provides the number of features seen in each data record
+        """
+        pass
 
+class NetflowDatset(VAEDataset):
+    """
+        Class created for research that initializes a dataset for 
+        training the anomaly detection VAE on.
+    """
+    def __init__(self, data_file: str, config=None):
+        # self.blank = config.blank a bunch of times
+        # self.data = data
+        # self.label = grab labels from data
+        # steps: load_csv -> separate the last column into self.labels and the rest into self.data
+        # throw some breakpoints for debugging
+        df = pd.read_csv(data_file)
+        self.data = df.iloc[:, :-1].values
+        self.labels = df.iloc[:, -1].values
+        self.input_size = self.data.shape[1]
+        print("Data loaded successfully")
+        print("Data shape:", self.data.shape)
+        print("Labels shape:", self.labels.shape)
+        print("Input size: ", str(self.input_size))
+        # for i in range(0,len(self.data)):
+        #     print("Record " + str(i))
+        #     print(self.data[i])
+        #     print(self.labels[i])
+        #     input()
+
+    def __getinputsize__(self):
+        return self.input_size
+
+    def __len__(self):
+        # return len(self.data)
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        # return self.data[idx], self.label[idx]
+        sample = torch.tensor(self.data[idx], dtype=torch.float32)
+        return sample
+    
+    def __getitemlabel__(self, idx):
+        label = torch.tensor(self.labels[idx], dtype=torch.long)
+        return label
+    
+    def __getbatch__(self, batch_size: int, label: int = 0):
+
+
+        output_tensor = Tensor()
+        data_record_tensor = []
+        indexes = []
+        label_tensor = []
+        # print("From NetflowDataset: Get batch")
+
+        # Shuffle a list of indexes matching the inputted label. Indexes from index 0 to 'batch size' will be returned
+        # print(self.labels)
+        for i in range(0, len(self.labels)):
+            if self.labels[i] == label:
+                indexes.append(i)
+
+        indexes = np.array(indexes)
+        np.random.shuffle(indexes)
+
+        # If there are not enough records to provide in the batch, raise an acception
+        if (batch_size > len(indexes)):
+            raise Exception("NetflowDataset: Not enough records to provide for batch size {" + str(batch_size) + "}.") 
+        
+        # Gather random data records with labels
+        i = 0
+        while i < batch_size:
+            data_record_tensor.append(self.__getitem__(indexes[i]))
+            label_tensor.append(self.__getitemlabel__(indexes[i]))
+            i = i + 1            
+        # print("     - Batch unstacked. Data then labels")
+        # print(data_record_tensor)
+        # print(label_tensor)
+
+        # Convert lists to tensors and stack
+        data_record_tensor = torch.stack(data_record_tensor)
+        label_tensor = torch.stack(label_tensor)
+        output_tensor = [data_record_tensor, label_tensor]
+
+        # print("     - Batch stacked. Data then labels")
+        # print(data_record_tensor)
+        # print(label_tensor)
+        # print("******************")
+        return output_tensor
+
+class CSVDataset(VAEDataset):
+    """
+        CSV dataset used to test VAE prior to receiving opensearch data.
+    """
 
     def __init__(self):
       
@@ -116,6 +180,7 @@ class CSVDataset(VAEDataset):
         num2 = 0
         output = []
         outputLabels = []
+
         for i in data1:
             num2 = 0
             output.append([])
@@ -149,7 +214,7 @@ class CSVDataset(VAEDataset):
                     elif (num2 == 11): # duration (millis)
                         temp = temp/1000000
                         output[num1].append(temp)
-                    elif (num2 == 12): # duration (millis)
+                    elif (num2 == 12): # label
                         outputLabels.append(temp)
 
                 num2 = num2 + 1
@@ -166,7 +231,7 @@ class CSVDataset(VAEDataset):
     def __getitem__(self, index) -> Tensor:
         return self.x[index]
     
-    def __getbatch__(self, batch_size) -> list:
+    def __getbatch__(self, batch_size: int, label: int) -> list:
         """
             This method generates a batch of size "batch_size" of shuffled data records from the CSV dataset. 
             Then, it returns it in the form of [record_list, label_list] where "record_list" is the random_list 
@@ -174,15 +239,26 @@ class CSVDataset(VAEDataset):
 
             *Both "record_list" and "label_list" are tensors
         """
+
         output_tensor = Tensor()
         data_record_tensor = []
+        indexes = []
         label_tensor = []
         print("From CSVDataset: Get batch")
 
-        # Shuffle a list of indexes. Indexes from index 0 to 'batch size' will be returned
-        indexes = np.arange(0, self.__len__())
+        # Shuffle a list of indexes matching the inputted label. Indexes from index 0 to 'batch size' will be returned
+        print(self.labels)
+        for i in range(0, len(self.labels)):
+            if self.labels[i] == label:
+                indexes.append(i)
+
+        indexes = np.array(indexes)
         np.random.shuffle(indexes)
 
+        # If there are not enough records to provide in the batch, raise an acception
+        if (batch_size > len(indexes)):
+            raise Exception("CSVDataset: Not enough records to provide for batch size {" + str(batch_size) + "}.") 
+        
         # Gather random data records with labels
         i = 0
         while i < batch_size:
@@ -201,12 +277,14 @@ class CSVDataset(VAEDataset):
         print("     - Batch stacked. Data then labels")
         print(data_record_tensor)
         print(label_tensor)
-        print("******************")
+        # print("******************")
         return output_tensor
       
     def __getitemlabel__(self, index) -> int:
         return self.labels[index]
     
+    def __getinputsize__(self):
+        return self.labels.shape[1]
     # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
@@ -216,3 +294,23 @@ def test_dataset() -> Dataset:# Dataset:
 
     # testing
     return CSVDataset()
+
+    
+def rand_dataset(num_rows=600, num_columns=20) -> Dataset:
+    return TensorDataset(torch.rand(num_rows, num_columns))
+
+
+class MNISTDataset(Dataset):
+    """MNIST dataset wrapper for VAE (returns only images as flattened vectors)"""
+
+    def __init__(self, train=True):
+        self.mnist = MNIST(root='./data', train=train, download=True, transform=None)
+
+    def __getitem__(self, index):
+        img, _ = self.mnist[index]
+        img_tensor = torch.tensor(np.array(img), dtype=torch.float32).flatten() / 255.0
+        return img_tensor
+
+    def __len__(self):
+        return len(self.mnist)
+
