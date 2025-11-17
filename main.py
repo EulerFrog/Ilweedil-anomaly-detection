@@ -112,11 +112,25 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def train():
+def train(
+    model_class=None,
+    train_dataloader=None,
+    val_dataloader=None,
+    test_dataloader=None,
+    args=None
+):
     """
     Main function to train the VAE model
+
+    Args:
+        model_class: The autoencoder class to use (e.g., VAEAnomalyTabular). If None, uses default.
+        train_dataloader: DataLoader for training data. If None, creates from SyntheticAnomalyDataset.
+        val_dataloader: DataLoader for validation data. If None, creates from SyntheticAnomalyDataset.
+        test_dataloader: DataLoader for test data (with anomalies). If None, creates from SyntheticAnomalyDataset.
+        args: Command-line arguments. If None, parses from command line.
     """
-    args = get_args()
+    if args is None:
+        args = get_args()
     print(args)
 
     experiment_folder = make_folder_run()
@@ -137,8 +151,12 @@ def train():
 
     print(f"Using device: {device}")
 
+    # Use default model class if not provided
+    if model_class is None:
+        model_class = VAEAnomalyTabular
+
     # Initialize model
-    model = VAEAnomalyTabular(
+    model = model_class(
         args.input_size,
         args.latent_size,
         args.num_resamples,
@@ -149,35 +167,46 @@ def train():
     # Setup datasets with three-way split
     print("\n=== Loading Datasets ===")
 
-    # Dataset parameters - 9 classes total (0-7 normal, 8 anomaly)
-    n_classes = 9
-    dataset_params = {
-        'n_samples': 10000,
-        'n_features': args.input_size,
-        'n_classes': n_classes,
-        'n_informative': max(0, int(args.input_size * 0.5)),  # 80% informative features
-        'n_redundant': max(0, int(args.input_size * 0.5)),     # 10% redundant features
-        'anomaly_ratio': 0.02,
-        'random_state': 42,
-        'train_ratio': 0.6,
-        'val_ratio': 0.2,
-        'test_ratio': 0.2,
-        'class_sep': 2.5  # Increased separation for more distinct classes
-    }
+    # If dataloaders are not provided, create default ones from SyntheticAnomalyDataset
+    if train_dataloader is None or val_dataloader is None or test_dataloader is None:
+        # Dataset parameters - 9 classes total (0-7 normal, 8 anomaly)
+        n_classes = 9
+        dataset_params = {
+            'n_samples': 10000,
+            'n_features': args.input_size,
+            'n_classes': n_classes,
+            'n_informative': max(0, int(args.input_size * 0.5)),  # 50% informative features
+            'n_redundant': max(0, int(args.input_size * 0.5)),     # 50% redundant features
+            'anomaly_ratio': 0.02,
+            'random_state': 42,
+            'train_ratio': 0.6,
+            'val_ratio': 0.2,
+            'test_ratio': 0.2,
+            'class_sep': 2.5  # Increased separation for more distinct classes
+        }
 
-    train_set = SyntheticAnomalyDataset(**dataset_params, split='train')
-    train_dloader = DataLoader(train_set, args.batch_size, shuffle=True, num_workers=0)
+        train_set = SyntheticAnomalyDataset(**dataset_params, split='train')
+        # Use benign dataloader for training (only normal samples)
+        train_dloader = train_set.get_benign_dataloader(batch_size=args.batch_size, shuffle=True, num_workers=0)
 
-    val_dataset = SyntheticAnomalyDataset(**dataset_params, split='val')
-    val_dloader = DataLoader(val_dataset, args.batch_size, num_workers=0)
+        val_dataset = SyntheticAnomalyDataset(**dataset_params, split='val')
+        # Use benign dataloader for validation (only normal samples)
+        val_dloader = val_dataset.get_benign_dataloader(batch_size=args.batch_size, shuffle=False, num_workers=0)
 
-    # Anomaly set for evaluation during training (contains both normal and anomalous samples)
-    anomaly_dataset = SyntheticAnomalyDataset(**dataset_params, split='test')
-    anomaly_dloader = DataLoader(anomaly_dataset, args.batch_size, num_workers=0)
+        # Test set for evaluation during training (contains both normal and anomalous samples)
+        anomaly_dataset = SyntheticAnomalyDataset(**dataset_params, split='test')
+        # Use full dataloader for test set (includes labels)
+        anomaly_dloader = anomaly_dataset.get_full_dataloader(batch_size=args.batch_size, shuffle=False, num_workers=0)
 
-    print(f"\nNote: Training and validation use only normal samples (classes 0-{n_classes-2})")
-    print(f"      Class {n_classes-1} is designated as the anomaly class")
-    print(f"      Anomaly set contains both normal and anomalous samples for evaluation\n")
+        print(f"\nNote: Training and validation use only normal samples (classes 0-{n_classes-2})")
+        print(f"      Class {n_classes-1} is designated as the anomaly class")
+        print(f"      Test set contains both normal and anomalous samples for evaluation\n")
+    else:
+        # Use provided dataloaders
+        train_dloader = train_dataloader
+        val_dloader = val_dataloader
+        anomaly_dloader = test_dataloader if test_dataloader is not None else val_dataloader
+        print("Using provided dataloaders\n")
 
     # Setup optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -288,11 +317,20 @@ def train():
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(anomaly_iterator):
-                # Move batch to device
-                if isinstance(batch, (list, tuple)):
+                # Handle different batch formats
+                if isinstance(batch, (list, tuple)) and len(batch) == 2:
+                    # Batch contains (data, labels)
+                    x, batch_labels = batch
+                    x = x.to(device)
+                    batch_labels_list = batch_labels.cpu().numpy().tolist()
+                elif isinstance(batch, (list, tuple)) and len(batch) == 1:
+                    # Batch contains only data (wrapped in list/tuple)
                     x = batch[0].to(device)
+                    batch_labels_list = None
                 else:
+                    # Batch contains only data
                     x = batch.to(device)
+                    batch_labels_list = None
 
                 # Calculate per-sample reconstruction errors
                 # Get the reconstruction distribution
@@ -310,13 +348,18 @@ def train():
                 anomaly_recon_errors.extend(batch_recon_errors)
 
                 # Get labels for this batch
-                start_idx = batch_idx * args.batch_size
-                end_idx = min(start_idx + args.batch_size, len(anomaly_dataset))
-                for idx in range(start_idx, end_idx):
-                    label = anomaly_dataset.__getitemlabel__(idx)
-                    # Binary label: 1 if anomaly (class n-1), 0 if normal (classes 0 to n-2)
-                    is_anomaly = 1 if label == anomaly_dataset.anomaly_class else 0
-                    anomaly_labels.append(is_anomaly)
+                if batch_labels_list is not None:
+                    # Labels are in the batch
+                    anomaly_labels.extend(batch_labels_list)
+                else:
+                    # Fallback: get labels from dataset if available
+                    start_idx = batch_idx * args.batch_size
+                    end_idx = min(start_idx + args.batch_size, len(anomaly_dataset))
+                    for idx in range(start_idx, end_idx):
+                        label = anomaly_dataset.__getitemlabel__(idx)
+                        # Binary label: 1 if anomaly (class n-1), 0 if normal (classes 0 to n-2)
+                        is_anomaly = 1 if label == anomaly_dataset.anomaly_class else 0
+                        anomaly_labels.append(is_anomaly)
 
         # Convert to numpy arrays
         anomaly_recon_errors = np.array(anomaly_recon_errors)

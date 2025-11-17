@@ -4,15 +4,121 @@ from typing import Tuple
 import numpy as np
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, TensorDataset
+from torch.utils.data import Dataset, TensorDataset, DataLoader
 from torchvision.datasets import MNIST
 from sklearn.datasets import make_classification
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 
+class VAEDataset(ABC):
+    """
+        Abstract base class for VAE datasets.
+
+        Takes data and labels tensors, separates them into benign (label=0)
+        and anomalous (label=1) datasets, and provides dataloaders for each.
+
+        Datasets contain:
+        - data: Tensor of shape (n_samples, n_features)
+        - labels: Tensor of shape (n_samples,) with values 0 (benign) or 1 (anomalous)
+    """
+
+    def __init__(self, data: Tensor, labels: Tensor):
+        """
+            Initialize the dataset with data and labels.
+
+            Args:
+                data: Tensor of shape (n_samples, n_features) containing all samples
+                labels: Tensor of shape (n_samples,) with 0 for benign, 1 for anomalous
+        """
+        self.data = data
+        self.labels = labels
+
+        # Separate benign and anomalous data
+        benign_mask = labels == 0
+        anomalous_mask = labels == 1
+
+        self.benign_data = data[benign_mask]
+        self.anomalous_data = data[anomalous_mask]
+
+        print(f"Dataset initialized: {len(self.benign_data)} benign, {len(self.anomalous_data)} anomalous samples")
+
+    def get_benign_dataloader(
+        self,
+        batch_size: int = 32,
+        shuffle: bool = True,
+        num_workers: int = 0,
+        **kwargs
+    ):
+        """
+            Creates and returns a DataLoader for benign (normal) data.
+
+            Args:
+                batch_size: Number of samples per batch
+                shuffle: Whether to shuffle the data
+                num_workers: Number of worker processes for data loading
+                **kwargs: Additional arguments to pass to DataLoader
+
+            Returns:
+                DataLoader for benign data
+        """
+        if len(self.benign_data) == 0:
+            raise ValueError("No benign samples available in dataset")
+
+        dataset = TensorDataset(self.benign_data)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
+                         num_workers=num_workers, **kwargs)
+
+    def get_anomalous_dataloader(
+        self,
+        batch_size: int = 32,
+        shuffle: bool = True,
+        num_workers: int = 0,
+        **kwargs
+    ):
+        """
+            Creates and returns a DataLoader for anomalous data.
+
+            Args:
+                batch_size: Number of samples per batch
+                shuffle: Whether to shuffle the data
+                num_workers: Number of worker processes for data loading
+                **kwargs: Additional arguments to pass to DataLoader
+
+            Returns:
+                DataLoader for anomalous data
+        """
+        if len(self.anomalous_data) == 0:
+            raise ValueError("No anomalous samples available in dataset")
+
+        dataset = TensorDataset(self.anomalous_data)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
+                         num_workers=num_workers, **kwargs)
+
+    def get_full_dataloader(
+        self,
+        batch_size: int = 32,
+        shuffle: bool = False,
+        num_workers: int = 0,
+        **kwargs
+    ):
+        """
+            Creates and returns a DataLoader for all data (benign + anomalous).
+
+            Args:
+                batch_size: Number of samples per batch
+                shuffle: Whether to shuffle the data
+                num_workers: Number of worker processes for data loading
+                **kwargs: Additional arguments to pass to DataLoader
+
+            Returns:
+                DataLoader for all data with labels
+        """
+        dataset = TensorDataset(self.data, self.labels)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
+                         num_workers=num_workers, **kwargs)
 
 
-class SyntheticAnomalyDataset(Dataset):
+class SyntheticAnomalyDataset(VAEDataset):
     """
     Wrapper class for synthetic anomaly detection dataset using make_classification.
 
@@ -137,6 +243,19 @@ class SyntheticAnomalyDataset(Dataset):
             print(f"  Class distribution: {class_counts}")
             print(f"  Anomaly class: {self.anomaly_class}")
 
+        # Convert labels to binary: 0 for benign, 1 for anomalous
+        if split == 'train' or split == 'val':
+            # Train and val sets only have normal samples, so all labels are 0
+            binary_labels = torch.zeros(len(self.x), dtype=torch.long)
+        else:  # test split
+            # Test set has both normal and anomalous samples
+            # Convert: normal classes (0 to n-2) -> 0, anomaly class (n-1) -> 1
+            binary_labels = (self.labels == self.anomaly_class).long()
+
+        # Initialize parent class
+        super().__init__(self.x, binary_labels)
+
+        # Store additional attributes
         self.n_samples = len(self.x)
         self.split = split
 
@@ -145,29 +264,74 @@ class SyntheticAnomalyDataset(Dataset):
         return self.x[index]
 
     def __getitemlabel__(self, index):
-        """Get label for a single sample (only for test set)"""
-        if self.labels is not None:
-            return self.labels[index]
-        return None
+        """Get label for a single sample"""
+        return self.labels[index]
 
     def __len__(self):
         """Return the size of the dataset"""
         return self.n_samples
 
+    def __getbatch__(self, batch_size: int) -> list:
+        """
+            This method generates a batch of size "batch_size" of shuffled data records.
+            Returns [data_records, labels] where both are tensors.
 
-class MNISTDataset(Dataset):
-    """MNIST dataset wrapper for VAE (returns only images as flattened vectors)"""
+            Args:
+                batch_size: Number of samples in the batch
+
+            Returns:
+                List containing [data_tensor, label_tensor]
+        """
+        # Shuffle indexes
+        perm = torch.randperm(len(self.x))
+        selected_indices = perm[:min(batch_size, len(self.x))]
+
+        # Get data and labels
+        data_tensor = self.x[selected_indices]
+        label_tensor = self.labels[selected_indices]
+
+        return [data_tensor, label_tensor]
+
+
+class MNISTDataset(VAEDataset):
+    """
+    MNIST dataset wrapper for VAE (returns flattened images).
+    Digit 0 is treated as anomalous, all other digits (1-9) are benign.
+    """
 
     def __init__(self, train=True):
-        self.mnist = MNIST(root='./data', train=train, download=True, transform=None)
+        # Load MNIST dataset
+        mnist = MNIST(root='./data', train=train, download=True, transform=None)
+
+        # Process all images and labels
+        all_data = []
+        all_labels = []
+
+        for idx in range(len(mnist)):
+            img, label = mnist[idx]
+            # Flatten and normalize image
+            img_tensor = torch.tensor(np.array(img), dtype=torch.float32).flatten() / 255.0
+            all_data.append(img_tensor)
+            # Binary label: 1 if digit 0 (anomalous), 0 otherwise (benign)
+            binary_label = 1 if label == 0 else 0
+            all_labels.append(binary_label)
+
+        # Stack into tensors
+        data_tensor = torch.stack(all_data)
+        labels_tensor = torch.tensor(all_labels, dtype=torch.long)
+
+        # Initialize parent class
+        super().__init__(data_tensor, labels_tensor)
+
+        # Store for backwards compatibility
+        self.mnist = mnist
 
     def __getitem__(self, index):
-        img, _ = self.mnist[index]
-        img_tensor = torch.tensor(np.array(img), dtype=torch.float32).flatten() / 255.0
-        return img_tensor
+        """Get a flattened, normalized image"""
+        return self.data[index]
 
     def __len__(self):
-        return len(self.mnist)
+        return len(self.data)
 
 
 def mnist_dataset(train=True) -> Dataset:
@@ -183,76 +347,10 @@ def mnist_dataset(train=True) -> Dataset:
     return MNISTDataset(train=train)
 
 
-class VAEDataset():
-    """
-        Defines a dataset which when fully extracted is in the form of:
-
-        records = Tensor(
-            [data record 1],
-            [data record 2],
-            .
-            .
-            .
-            [data record n]
-        )
-
-        labels = Tensor(
-            [label of data record 1],
-            [label of data record 2],
-            .
-            .
-            .
-            [label of data record n]
-        )
-
-    """
-    @abstractmethod
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def __getitem__(self, index:int) -> Tensor:
-        """
-            Expects index to be 0 <= index < self.__ln__()
-
-            Gets the data record stored at index "index"
-        """
-        pass
-
-    @abstractmethod
-    def __getbatch__(self, batch_size:int) -> list:
-        """
-            Expects batch_size to be 1 <= index <= self.__ln__()
-
-            This method generates a batch of size "batch_size" of shuffled data records from the VAE dataset.
-            Then, it returns it in the form of [records, labels] where "records" is the random_list
-            of data records and "labels" is the parallel list of labels of each record.
-
-            *Both "records" and "labels" are tensors based
-        """
-        pass
-
-    @abstractmethod
-    def __len__(self):
-        """
-            Returns the size of the dataset (number of data records)
-        """
-        pass
-
-    @abstractmethod
-    def __getitemlabel__(self, index: int):
-        """
-            Expects index to be 0 <= index < self.__ln__()
-
-            Gets the label of the data record stored at index "index"
-        """
-        pass
-
-
 class CSVDataset(VAEDataset):
 
     def __init__(self):
-      
+
         data1 = np.loadtxt('./data/NF-UNSW-NB15.csv', delimiter=',',
                            dtype=np.str_, skiprows=1)
         num1 = 0
@@ -264,7 +362,7 @@ class CSVDataset(VAEDataset):
             output.append([])
 
             for j in i:
-                
+
                 temp = float("".join(j.split(".")))
                 if (num2 >= 4):
 
@@ -299,9 +397,20 @@ class CSVDataset(VAEDataset):
             num1 = num1 + 1
         output = np.asarray(output, dtype=np.float32)
 
-        self.x = torch.from_numpy(output[:, :]).type(torch.float)
-        labels = np.asarray(outputLabels, dtype=np.float32)
-        self.labels = torch.from_numpy(labels).type(torch.float)
+        data_tensor = torch.from_numpy(output[:, :]).type(torch.float)
+        labels_array = np.asarray(outputLabels, dtype=np.float32)
+
+        # Convert labels to binary: 0 for benign, 1 for anomalous
+        # Assuming label 0 in CSV means benign, anything else is anomalous
+        labels_binary = (labels_array > 0).astype(np.float32)
+        labels_tensor = torch.from_numpy(labels_binary).type(torch.long)
+
+        # Initialize parent class with data and labels
+        super().__init__(data_tensor, labels_tensor)
+
+        # Keep these for backwards compatibility
+        self.x = data_tensor
+        self.labels = labels_tensor
         self.n_samples = output.shape[0] 
     
     # support indexing such that dataset[i] can
@@ -341,7 +450,7 @@ class CSVDataset(VAEDataset):
 
     def __getitemlabel__(self, index) -> int:
         return self.labels[index]
-    
+
     # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
