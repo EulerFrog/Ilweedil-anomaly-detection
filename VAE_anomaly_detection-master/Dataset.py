@@ -231,31 +231,36 @@ class VAEDataset(ABC):
         anomalous_slice_data = self.anomalous_data[self.unallocated_anomalous_data_start_index:(self.unallocated_anomalous_data_start_index+anomalous_size)]
         anomalous_slice_labels = torch.tensor((), dtype=torch.int)
         anomalous_slice_labels = anomalous_slice_data.new_ones((anomalous_size, 1))
-        benign_slice_data = self.benign_data[self.unallocated_benign_data_start_index:(self.unallocated_benign_data_start_index+anomalous_size)]
+        benign_slice_data = self.benign_data[self.unallocated_benign_data_start_index:(self.unallocated_benign_data_start_index+benign_size)]
         benign_slice_labels = torch.tensor((), dtype=torch.int)
         benign_slice_labels = benign_slice_labels.new_zeros((benign_size,1))
         
-        # print('anomalous slice')
-        # print(anomalous_slice_data)
-        # print(anomalous_slice_data.size())
-        # print('benign_slice')
-        # print(benign_slice_data)
-        # print(benign_slice_data.size())
+        print('anomalous slice')
+        print(anomalous_slice_data)
+        print(anomalous_slice_data.size())
+        print(anomalous_slice_labels.size())
+        print(anomalous_size)
+        print('benign_slice')
+        print(benign_slice_data)
+        print(benign_slice_data.size())
+        print(benign_slice_labels.size())
+        print(benign_size)
 
         # Stack slices and convert to TensorDataset.
         slice_data = torch.cat([anomalous_slice_data, benign_slice_data], dim=0)
         slice_labels = torch.cat([anomalous_slice_labels, benign_slice_labels], dim=0)
 
-        # print('total slice')
-        # print(slice_data)
-        # print(slice_data.size())
+        print('total slice')
+        print(slice_data)
+        print(slice_data.size())
+        print(slice_labels.size())
 
         # Adjust starting indexes
         self.unallocated_anomalous_data_start_index = self.unallocated_anomalous_data_start_index + anomalous_size
         self.unallocated_benign_data_start_index = self.unallocated_benign_data_start_index + benign_size
 
         dataset = TensorDataset(slice_data, slice_labels)
-        return DataLoader(dataset, batch_size=int(batch_size), shuffle=False,
+        return DataLoader(dataset, batch_size=int(batch_size), shuffle=True,
                          num_workers=num_workers, **kwargs)
 
     def get_full_dataloader(
