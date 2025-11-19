@@ -235,25 +235,25 @@ class VAEDataset(ABC):
         benign_slice_labels = torch.tensor((), dtype=torch.int)
         benign_slice_labels = benign_slice_labels.new_zeros((benign_size,1))
         
-        print('anomalous slice')
-        print(anomalous_slice_data)
-        print(anomalous_slice_data.size())
-        print(anomalous_slice_labels.size())
-        print(anomalous_size)
-        print('benign_slice')
-        print(benign_slice_data)
-        print(benign_slice_data.size())
-        print(benign_slice_labels.size())
-        print(benign_size)
+        # print('anomalous slice')
+        # print(anomalous_slice_data)
+        # print(anomalous_slice_data.size())
+        # print(anomalous_slice_labels.size())
+        # print(anomalous_size)
+        # print('benign_slice')
+        # print(benign_slice_data)
+        # print(benign_slice_data.size())
+        # print(benign_slice_labels.size())
+        # print(benign_size)
 
         # Stack slices and convert to TensorDataset.
         slice_data = torch.cat([anomalous_slice_data, benign_slice_data], dim=0)
         slice_labels = torch.cat([anomalous_slice_labels, benign_slice_labels], dim=0)
 
-        print('total slice')
-        print(slice_data)
-        print(slice_data.size())
-        print(slice_labels.size())
+        # print('total slice')
+        # print(slice_data)
+        # print(slice_data.size())
+        # print(slice_labels.size())
 
         # Adjust starting indexes
         self.unallocated_anomalous_data_start_index = self.unallocated_anomalous_data_start_index + anomalous_size
