@@ -384,10 +384,10 @@ class ModelInfo:
         i = 0
         while (i < self.batch_size):
 
-            print('Batch index ' + str(i))
-            print(test_dataset_labels[i])
-            print(result[i])
-            print('***')
+            # print('Batch index ' + str(i))
+            # print(test_dataset_labels[i])
+            # print(result[i])
+            # print('***')
             if (test_dataset_labels[i] == 0 and result[i] == 0):
                 TN = TN + 1
             elif (test_dataset_labels[i] == 1 and result[i] == 0):
@@ -398,11 +398,11 @@ class ModelInfo:
                 TP = TP + 1
             i = i + 1
 
-        print("test results:")
-        print("TP = " + str(TP))
-        print("TN = " + str(TN))
-        print("FP = " + str(FP))
-        print("FN = " + str(FN))
+        # print("Test results:")
+        # print("TP = " + str(TP))
+        # print("TN = " + str(TN))
+        # print("FP = " + str(FP))
+        # print("FN = " + str(FN))
         
         acc = ((TP + TN) / (self.batch_size))
         if (TP+FP == 0):
@@ -419,10 +419,10 @@ class ModelInfo:
             f1 = -1
         else:
             f1 = 2 * ((prec * rec)/(prec+rec))
-        print("Accuracy = " +  str(acc))
-        print("Precision = " + str(prec))
-        print("Recall = " + str(rec))
-        print("F1 = " + str(f1))
+        # print("Accuracy = " +  str(acc))
+        # print("Precision = " + str(prec))
+        # print("Recall = " + str(rec))
+        # print("F1 = " + str(f1))
 
         
         # Pack up and return results
