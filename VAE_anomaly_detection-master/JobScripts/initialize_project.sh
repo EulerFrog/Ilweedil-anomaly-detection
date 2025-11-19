@@ -18,6 +18,7 @@ conda create --name cow
 ../../anaconda3/bin/pip install pandas
 ../../anaconda3/bin/pip install scikit-learn
 ../../anaconda3/bin/pip install requests
+../../anaconda3/bin/pip install tqdm
 
 
 

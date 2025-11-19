@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 
+import torch
 from torch import Tensor
-from Dataset import CSVDataset, VAEDataset
+from Dataset import VAEDataset
 from model.VAE import VAEAnomalyTabular
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
@@ -119,7 +120,12 @@ class ModelInfo:
         if (epoch == -1):
 
             if (os.path.exists(self.model_path + "/checkpoints/last.ckpt")):
-                self.model = VAEAnomalyTabular.load_from_checkpoint(checkpoint_path=(self.model_path + "/checkpoints/last.ckpt"))
+                self.model = VAEAnomalyTabular(
+                    self.input_size, 
+                    self.latent_size, 
+                    self.num_resamples, 
+                    self.lr) 
+                self.model.load_state_dict(torch.load(self.model_path + "/checkpoints/last.ckpt", weights_only=False)['model_state_dict'])
                 return 1
             else:
                 return 2
@@ -130,7 +136,13 @@ class ModelInfo:
             for file in os.listdir(self.model_path + "/checkpoints/"):
                 
                 if (("epoch=" + str(epoch)) in file):
-                    self.model = VAEAnomalyTabular.load_from_checkpoint(checkpoint_path=(self.model_path +  + "/checkpoints/" + file))
+                    self.model = VAEAnomalyTabular(
+                        self.input_size, 
+                        self.latent_size, 
+                        self.num_resamples, 
+                        self.lr) 
+                    self.model.load_state_dict(torch.load(self.model_path +  + "/checkpoints/" + file, weights_only=False)['model_state_dict']
+)
                     return 1
                 
             return 2
@@ -148,6 +160,7 @@ class ModelInfo:
         data_records = []
         data_record_labels = []
         results_aggregates = dict()
+        test_data_loader = None
 
         # Initialize test results dictionary
         for field in ModelInfo.test_fields:
@@ -157,20 +170,24 @@ class ModelInfo:
                 "avg":0
             }
 
-        # Perform tests. For each test round, do a test of non-anomylous and anomylous data
-        for i in range(0, test_rounds):
-            
-            batch = dataset.__getbatch__(self.batch_size, label=0)
-            data_records = batch[0]
-            data_record_labels = batch[1]
+        # Initialize test_data_loader as dataloader of the remaining data records in the VAEDataset
+        remaining_anomalous_data = dataset.anomalous_data_length - dataset.unallocated_anomalous_data_start_index
+        remaining_benign_data = dataset.benign_data_length - dataset.unallocated_benign_data_start_index
+        test_data_loader = dataset.get_dataloader(
+            self.batch_size,
+            benign_size=remaining_benign_data,
+            anomalous_size=remaining_anomalous_data
+        )
+
+        # Perform tests. For each test round, do a test of size 'batch_size'
+        i = 0
+        for data_records, data_record_labels in test_data_loader:            
 
             results.append(self.TestModel(data_records, data_record_labels))
 
-            batch = dataset.__getbatch__(self.batch_size, label=1)
-            data_records = batch[0]
-            data_record_labels = batch[1]
-
-            results.append(self.TestModel(data_records, data_record_labels))
+            i = i + 1
+            if (i >= test_rounds):
+                break
 
         # Calculate aggregate of test results
         for test in results:
