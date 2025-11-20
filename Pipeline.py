@@ -527,9 +527,9 @@ def train_test(dataset: VAEDataset):
         args, 
         args.test_name, 
         dataset,
-        test_dataset_size=500,
+        test_dataset_size=250,
         train_dataset_size=6000,
-        validation_dataset_size=1000,
+        validation_dataset_size=500,
         model_class=VAEAnomalyTabular
     )
 

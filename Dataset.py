@@ -66,8 +66,6 @@ class VAEDataset(ABC):
                 torch.tensor(df.iloc[:, -1].values, dtype=torch.int)
             )
 
-
-
     def initialize_dataset(self, data: Tensor, labels: Tensor):
         """
             Method with the purpose of initializing the data and labels of all records in this class.
