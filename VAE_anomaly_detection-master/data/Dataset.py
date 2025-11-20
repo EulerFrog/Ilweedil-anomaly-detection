@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-class NetflowDatset(Dataset):
+class NetflowDataset(Dataset):
     def __init__(self, data_file, config=None):
         # self.blank = config.blank a bunch of times
         # self.data = data
@@ -27,3 +27,4 @@ class NetflowDatset(Dataset):
         sample = torch.tensor(self.data[idx], dtype=torch.float32)
         label = torch.tensor(self.labels[idx], dtype=torch.long)
         return sample, label
+
