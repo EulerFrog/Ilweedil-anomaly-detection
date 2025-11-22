@@ -140,9 +140,12 @@ class VAEDataset(ABC):
         if size + self.unallocated_benign_data_start_index > self.benign_data_length:
             raise Exception(f"VAEDataset (err): Could not create benign data loader (requested loader of size {size} but only {self.benign_data_length - self.unallocated_benign_data_start_index} records available)")
 
-        slice = self.benign_data[self.unallocated_benign_data_start_index:(self.unallocated_benign_data_start_index+size)]
+        slice_data = self.benign_data[self.unallocated_benign_data_start_index:(self.unallocated_benign_data_start_index+size)]
         self.unallocated_benign_data_start_index = self.unallocated_benign_data_start_index + size
-        dataset = TensorDataset(slice)
+        slice_labels = torch.tensor((), dtype=torch.int)
+        slice_labels = slice_labels.new_zeros((size,1))
+
+        dataset = TensorDataset(slice_data)
         return DataLoader(dataset, batch_size=batch_size, shuffle=False,
                          num_workers=num_workers, **kwargs)
 
@@ -178,9 +181,12 @@ class VAEDataset(ABC):
             raise Exception(f"VAEDataset (err): Could not create anomalous data loader (requested loader of size {size} but only {self.anomalous_data_length - self.unallocated_anomalous_data_start_index} records available)")
 
 
-        slice = self.anomalous_data[self.unallocated_anomalous_data_start_index:(self.unallocated_anomalous_data_start_index+size)]
+        slice_data = self.anomalous_data[self.unallocated_anomalous_data_start_index:(self.unallocated_anomalous_data_start_index+size)]
         self.unallocated_anomalous_data_start_index = self.unallocated_anomalous_data_start_index + size
-        dataset = TensorDataset(slice)
+        slice_labels = torch.tensor((), dtype=torch.int)
+        slice_labels = slice_labels.new_ones((size,1))
+        
+        dataset = TensorDataset(slice_data, slice_labels)
         return DataLoader(dataset, batch_size=batch_size, shuffle=False,
                          num_workers=num_workers, **kwargs)
 
@@ -420,7 +426,7 @@ class SyntheticAnomalyDataset(VAEDataset):
             binary_labels = (self.labels == self.anomaly_class).long()
 
         # Initialize parent class
-        super().__init__(self.x, binary_labels)
+        super().__init__(from_tensor=True, data=self.x, labels=binary_labels)
 
         # Store additional attributes
         self.n_samples = len(self.x)

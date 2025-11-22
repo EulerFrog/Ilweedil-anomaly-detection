@@ -148,10 +148,28 @@ class ModelInfo:
             return 2
             
                 
-    def MassTestModel(self, dataset: VAEDataset, test_rounds:int , results_output_path: str, test_name: str, alpha: float = 0.5):
+    def MassTestModel(
+            self, 
+            dataset: VAEDataset, 
+            anomalous_test_records: int,
+            benign_test_records: int,
+            test_rounds:int , 
+            results_output_path: str, 
+            test_name: str, 
+            alpha: float = 0.5
+        ):
         """
             Runs "test_rounds" tests on the model using "dataset" to do so. Outputs the results as a .csv file 
             to "results_output_path".
+
+            Args: 
+                dataset: VAEDataset, - dataset to pull records from for testing
+                anomalous_test_records: int, - number of anomalous test records available in testing from the dataset
+                benign_test_records: int, - number of benign test records available in testing from the dataset
+                test_rounds:int , - number of testing rounds
+                results_output_path: str, - path to store the test results
+                test_name: str, - name of the test
+                alpha: float = 0.5 - sensitivity for anomaly detection
         """
 
         # Locals
@@ -170,20 +188,19 @@ class ModelInfo:
                 "avg":0
             }
 
-        # Initialize test_data_loader as dataloader of the remaining data records in the VAEDataset
-        remaining_anomalous_data = dataset.anomalous_data_length - dataset.unallocated_anomalous_data_start_index
-        remaining_benign_data = dataset.benign_data_length - dataset.unallocated_benign_data_start_index
+        # Initialize test_data_loader as dataloader from data records in the VAEDataset
+        #   with 'benign_test_records' benign records and 'anomalous_test_records' anomalous records
         test_data_loader = dataset.get_dataloader(
             self.batch_size,
-            benign_size=remaining_benign_data,
-            anomalous_size=remaining_anomalous_data
+            benign_size=benign_test_records,
+            anomalous_size=anomalous_test_records
         )
 
         # Perform tests. For each test round, do a test of size 'batch_size'
         i = 0
         for data_records, data_record_labels in test_data_loader:            
 
-            results.append(self.TestModel(data_records, data_record_labels))
+            results.append(self.TestModel(data_records, data_record_labels, alpha))
 
             i = i + 1
             if (i >= test_rounds):
@@ -378,8 +395,19 @@ class ModelInfo:
             return {}
         
         # Run tests
-        result = self.model.is_anomaly(test_dataset_records, alpha)
+        result, p = self.model.is_anomaly(test_dataset_records, alpha)
 
+        # print("records")
+        # print(test_dataset_records)
+        # print("labels")
+        # print(test_dataset_labels)
+        # print("error")
+        # print(p)
+        # print("alpha")
+        # print(alpha)
+        # print("result")
+        # print(result)
+        # input()
         # Run calculations based on results.
         i = 0
         while (i < self.batch_size):

@@ -96,9 +96,13 @@ class VAEAnomalyDetection(nn.Module, ABC):
             - latent_sigma: Standard deviation of the latent space.
             - z: Sampled latent space.
         """
+        # print(x)
         pred_result = self.predict(x)
         x = x.unsqueeze(0)
         recon_dist = Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
+
+
+
         log_lik = recon_dist.log_prob(x).mean(dim=0).mean(dim=0).sum()
         kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
         loss = kl - log_lik
@@ -153,7 +157,7 @@ class VAEAnomalyDetection(nn.Module, ABC):
             and False represents a normal sample.
         """
         p = self.reconstructed_probability(x)
-        return p < alpha
+        return p < alpha, p
 
     def reconstructed_probability(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -172,6 +176,7 @@ class VAEAnomalyDetection(nn.Module, ABC):
         recon_dist = Normal(pred['recon_mu'], pred['recon_sigma'])
         x = x.unsqueeze(0)
         p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)
+        p = -p # Negative log-likelihood as error
         return p
 
     def generate(self, batch_size: int = 1) -> torch.Tensor:
