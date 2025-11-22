@@ -6,6 +6,7 @@ import urllib3
 import sys
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
+import numpy as np
 
 def load_data(username, password):
     # Suppress HTTPS warnings (because verify=False)
@@ -63,7 +64,7 @@ def populate(raw_data, data):
 
     return data
 
-def remap(data):
+def remap_ports(data):
     common_ports = {
         "80": "HTTP",
         "8080": "HTTP",
@@ -163,7 +164,7 @@ def create_csvdata(data_dict):
     data = populate(raw_data, data) 
 
     # remap port numbers to categories for one hot encoding
-    data = remap(data)
+    data = remap_ports(data)
 
     # convert to pandas df
     df = pd.DataFrame(data)
@@ -192,6 +193,164 @@ def download_netflow_dataset():
     
     # create csv of useful data
     create_csvdata(data_dict)
+
+def calculate_direction(NIDS_df):
+
+    src_port_toclient = NIDS_df["L4_SRC_PORT"] < 1024
+    dest_port_toserver = NIDS_df["L4_DST_PORT"] < 1024
+
+    NIDS_df["flow_direction"] = np.nan
+
+    NIDS_df.loc[dest_port_toserver, 'flow_direction'] = 'to_server'
+    NIDS_df.loc[src_port_toclient, 'flow_direction'] = 'to_client'
+
+    remaining_mask = NIDS_df['flow_direction'].isna()
+    NIDS_df.loc[remaining_mask & (NIDS_df['OUT_BYTES'] > NIDS_df['IN_BYTES']), 'flow_direction'] = 'to_client'
+    NIDS_df.loc[remaining_mask & (NIDS_df['OUT_BYTES'] <= NIDS_df['IN_BYTES']), 'flow_direction'] = 'to_server'
+
+    NIDS_df['bytes_to_server'] = np.where(
+        NIDS_df['flow_direction'] == 'to_server',
+        NIDS_df['IN_BYTES'],
+        NIDS_df['OUT_BYTES']
+    )
+    
+    NIDS_df['bytes_to_client'] = np.where(
+        NIDS_df['flow_direction'] == 'to_server',
+        NIDS_df['OUT_BYTES'],
+        NIDS_df['IN_BYTES']
+    )
+
+    NIDS_df['pkts_to_server'] = np.where(
+        NIDS_df['flow_direction'] == 'to_server',
+        NIDS_df['IN_PKTS'],
+        NIDS_df['OUT_PKTS']
+    )
+    
+    NIDS_df['pkts_to_client'] = np.where(
+        NIDS_df['flow_direction'] == 'to_server',
+        NIDS_df['OUT_PKTS'],
+        NIDS_df['IN_PKTS'] 
+    )
+
+    return NIDS_df
+
+
+def rename_NIDS_columns(NIDS_df):
+    col_name_mapping = {
+        "source_port": "src_port",
+        "destination_port": "dest_port",
+        "bytes_to_client": "bytes_toclient",
+        "pkts_to_client": "pkts_toclient", 
+        "bytes_to_server": "bytes_toserver",
+        "pkts_to_server": "pkts_toserver",
+        "flow_direction": "direction",
+        "FLOW_DURATION_MILLISECONDS": "duration",
+        "PROTOCOL": "protocol",
+        "Label": "label"
+    }
+
+    NIDS_df = NIDS_df[list(col_name_mapping.keys())].rename(columns=col_name_mapping)
+
+    return NIDS_df
+
+
+def categorize_ports(NIDS_df):
+    port_categories = {
+        "80": "HTTP",
+        "8080": "HTTP",
+        "443": "HTTPS",
+        "22": "SSH",
+        "922": "SSH",
+        "53": "DNS",
+        "67": "DHCP",
+        "68": "DHCP",
+        "25": "SMTP",
+        "161": "SNMP",
+        "162": "SNMP",
+        "3389": "RDP",
+        "3306": "SQL",
+        "20": "FTP",
+        "21": "FTP",
+    }   
+
+    NIDS_df["source_port"] = NIDS_df["L4_SRC_PORT"].map(port_categories)
+    NIDS_df["destination_port"] = NIDS_df["L4_DST_PORT"].map(port_categories)
+
+    
+    src_public_mask = NIDS_df['source_port'].isna() & (NIDS_df['L4_SRC_PORT'] < 1024)
+    NIDS_df.loc[src_public_mask, 'source_port'] = 'public'
+    
+    src_private_mask = NIDS_df['source_port'].isna() & (NIDS_df['L4_SRC_PORT'] < 49152)
+    NIDS_df.loc[src_private_mask, 'source_port'] = 'private'
+    
+    src_dynamic_mask = NIDS_df['source_port'].isna() & (NIDS_df['L4_SRC_PORT'] > 49151)
+    NIDS_df.loc[src_dynamic_mask, 'source_port'] = 'dynamic'
+    
+    dest_public_mask = NIDS_df['destination_port'].isna() & (NIDS_df['L4_DST_PORT'] < 1024)
+    NIDS_df.loc[dest_public_mask, 'destination_port'] = 'public'
+    
+    dest_private_mask = NIDS_df['destination_port'].isna() & (NIDS_df['L4_DST_PORT'] < 49152)
+    NIDS_df.loc[dest_private_mask, 'destination_port'] = 'private'
+
+    dest_dynamic_mask = NIDS_df['destination_port'].isna() & (NIDS_df['L4_DST_PORT'] > 49151)
+    NIDS_df.loc[dest_dynamic_mask, 'destination_port'] = 'dynamic'
+    
+    return NIDS_df
+
+def categorize_protocols(NIDS_df):
+    protocol_categories = {
+        6: "tcp",
+        17: "udp",
+        1: "icmp",
+        58: "ipv6-icmp",
+        47: "gre",
+        50: "esp"
+    }
+
+    NIDS_df["PROTOCOL"] = NIDS_df["PROTOCOL"].map(protocol_categories).fillna("other")
+
+    return NIDS_df
+
+def reformat_NIDS_dataset():
+    if len(sys.argv) != 2:
+        print("ERROR: NIDS dataset not specified.")
+        sys.exit()
+
+    NIDS_file = sys.argv[1]
+
+    # read in dataset
+    NIDS_df = pd.read_csv(NIDS_file)
+
+    # calculate and create direction for direction, pkt, and byte columns
+    NIDS_df = calculate_direction(NIDS_df)
+
+    # remap port numbers to string categories
+    NIDS_df = categorize_ports(NIDS_df)
+
+    # remap protocol number to string categories
+    NIDS_df = categorize_protocols(NIDS_df)
+
+    NIDS_df = rename_NIDS_columns(NIDS_df)
+
+    # convert direction to binary
+    NIDS_df["direction"] = NIDS_df["direction"].map({"to_server": 0.0, "to_client": 1.0}) 
+
+    # convert label to float
+    NIDS_df["label"] = NIDS_df["label"].astype(float)
+
+    # one hot encode our dataframe
+    NIDS_df = one_hot(NIDS_df)
+
+    numeric_cols = ["bytes_toclient", "bytes_toserver", "pkts_toclient", "pkts_toserver", "duration"]
+    # standardize bytes, pkts, duration
+    for col in numeric_cols:
+        NIDS_df = min_max(NIDS_df, col)
+
+    breakpoint()
+
+    # write csv
+    NIDS_df.to_csv("NIDS_cleaned_dataset.csv", index=False)
+
 
 def stat_netflow_dataset():
 
@@ -293,5 +452,9 @@ def stat_netflow_dataset():
                 output_file.write("appearance ratio: " + str(entry["information"]/size) + ",\n")
 
 
-
+def main():
+    reformat_NIDS_dataset()
+ 
+if __name__ == "__main__":
+    main()
 
