@@ -16,7 +16,7 @@ ALPHA=$7
 NUM_TESTS=$8
     
 # experiment_name, input_size, latent_size, batch_size, num_resamples, epochs, lr, alpha
-
+ 
 # Generate experiment name: gonogo-model-verb-noun
 EXP_NAME="VAE-IDS-${EXPERIMENT_NAME}"
 
