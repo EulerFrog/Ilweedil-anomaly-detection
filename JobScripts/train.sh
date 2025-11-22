@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # HTCondor training script for GoNogo neurogym task
-# Usage: ./train_gonogo.sh MODEL_TYPE ETA LAMBDA HIDDEN_DIM NUM_EPISODES MAX_EPISODE_STEPS SUFFIX
+# Usage: ./train.sh MODEL_TYPE ETA LAMBDA HIDDEN_DIM NUM_EPISODES MAX_EPISODE_STEPS SUFFIX
 
 set -e  # Exit on error
 
