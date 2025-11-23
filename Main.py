@@ -9,7 +9,7 @@ import os
 def main():
 
     # Load dataset 
-    dataset = VAEDataset(from_file=True, data_file_path=os.getcwd() + "\\data\\netflow_data.csv")
+    dataset = VAEDataset(from_file=True, data_file_path=os.getcwd() + "\\data\\data.csv")
 
     # Train and test model on dataset
     train_test(
@@ -21,7 +21,7 @@ def main():
         )
 
     # model = ModelInfo(
-    #     "test new train_test and netflow data",
+    #     "test new train_test data",
     #     39
     # )
 
