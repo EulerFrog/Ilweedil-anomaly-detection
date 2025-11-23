@@ -1,0 +1,211 @@
+
+Epoch 1/30 Summary:
+  Train Loss: -62.6755 | Val Loss: -77.1077
+  Train KL: 3.1946 | Val KL: 3.2063  Train Recon: 65.8701 | Val Recon: 80.3140
+
+  Anomaly Detection (threshold=80.3140):    Precision: 1.0000 | Recall: 0.9981 | F1: 0.9990
+    TP: 650938082 | FP: 0 | FN: 1251362 | TN: 0
+**************************************************************************************************
+Epoch 2/30 Summary:
+  Train Loss: -98.6134 | Val Loss: -112.3046
+  Train KL: 4.4230 | Val KL: 3.4508  Train Recon: 103.0364 | Val Recon: 115.7555
+
+  Anomaly Detection (threshold=115.7555):    Precision: 1.0000 | Recall: 0.9809 | F1: 0.9904
+    TP: 639752438 | FP: 0 | FN: 12437006 | TN: 0
+**************************************************************************************************
+Epoch 3/30 Summary:
+  Train Loss: -114.2444 | Val Loss: -49.9927
+  Train KL: 4.1364 | Val KL: 3.7767  Train Recon: 118.3808 | Val Recon: 53.7694
+
+  Anomaly Detection (threshold=53.7694):    Precision: 1.0000 | Recall: 0.9834 | F1: 0.9916
+    TP: 641361332 | FP: 0 | FN: 10828112 | TN: 0
+**************************************************************************************************
+Epoch 4/30 Summary:
+  Train Loss: -125.9241 | Val Loss: -154.5453
+  Train KL: 4.0655 | Val KL: 3.7048  Train Recon: 129.9897 | Val Recon: 158.2501
+
+  Anomaly Detection (threshold=158.2501):    Precision: 1.0000 | Recall: 0.9929 | F1: 0.9964
+    TP: 647541528 | FP: 0 | FN: 4647916 | TN: 0
+**************************************************************************************************
+Epoch 5/30 Summary:
+  Train Loss: 702.7546 | Val Loss: -142.5296
+  Train KL: 4.3623 | Val KL: 5.2422  Train Recon: -698.3922 | Val Recon: 147.7718
+
+  Anomaly Detection (threshold=147.7718):    Precision: 1.0000 | Recall: 0.9975 | F1: 0.9988
+    TP: 650580550 | FP: 0 | FN: 1608894 | TN: 0
+**************************************************************************************************
+Epoch 6/30 Summary:
+  Train Loss: -142.7651 | Val Loss: -156.5453
+  Train KL: 4.5946 | Val KL: 7.1504  Train Recon: 147.3597 | Val Recon: 163.6957
+
+  Anomaly Detection (threshold=163.6957):    Precision: 1.0000 | Recall: 0.9963 | F1: 0.9981
+    TP: 649763334 | FP: 0 | FN: 2426110 | TN: 0
+**************************************************************************************************
+Epoch 7/30 Summary:
+  Train Loss: -143.8889 | Val Loss: -170.8554
+  Train KL: 5.7613 | Val KL: 4.8357  Train Recon: 149.6501 | Val Recon: 175.6911
+
+  Anomaly Detection (threshold=175.6911):    Precision: 1.0000 | Recall: 0.9966 | F1: 0.9983
+    TP: 649967638 | FP: 0 | FN: 2221806 | TN: 0
+**************************************************************************************************
+Epoch 8/30 Summary:
+  Train Loss: -148.4046 | Val Loss: -169.1083
+  Train KL: 5.8334 | Val KL: 5.9418  Train Recon: 154.2381 | Val Recon: 175.0501
+
+  Anomaly Detection (threshold=175.0501):    Precision: 1.0000 | Recall: 0.9963 | F1: 0.9982
+    TP: 649788872 | FP: 0 | FN: 2400572 | TN: 0
+**************************************************************************************************
+Epoch 9/30 Summary:
+  Train Loss: -159.6596 | Val Loss: -164.8908
+  Train KL: 5.5324 | Val KL: 4.8353  Train Recon: 165.1920 | Val Recon: 169.7261
+
+  Anomaly Detection (threshold=169.7261):    Precision: 1.0000 | Recall: 0.9970 | F1: 0.9985
+    TP: 650248556 | FP: 0 | FN: 1940888 | TN: 0
+**************************************************************************************************
+Epoch 10/30 Summary:
+  Train Loss: -161.9636 | Val Loss: -179.9045
+  Train KL: 5.4372 | Val KL: 6.2158  Train Recon: 167.4008 | Val Recon: 186.1203
+
+  Anomaly Detection (threshold=186.1203):    Precision: 1.0000 | Recall: 0.9960 | F1: 0.9980
+    TP: 649559030 | FP: 0 | FN: 2630414 | TN: 0
+**************************************************************************************************
+Epoch 11/30 Summary:
+  Train Loss: -168.6438 | Val Loss: -180.1448
+  Train KL: 6.5214 | Val KL: 7.1741  Train Recon: 175.1652 | Val Recon: 187.3189
+
+  Anomaly Detection (threshold=187.3189):    Precision: 1.0000 | Recall: 0.9948 | F1: 0.9974
+    TP: 648792890 | FP: 0 | FN: 3396554 | TN: 0
+**************************************************************************************************
+Epoch 12/30 Summary:
+  Train Loss: -170.9827 | Val Loss: -177.4803
+  Train KL: 7.2698 | Val KL: 6.9416  Train Recon: 178.2526 | Val Recon: 184.4219
+
+  Anomaly Detection (threshold=184.4219):    Precision: 1.0000 | Recall: 0.9908 | F1: 0.9954
+    TP: 646162476 | FP: 0 | FN: 6026968 | TN: 0
+**************************************************************************************************
+Epoch 13/30 Summary:
+  Train Loss: -171.5858 | Val Loss: -200.8487
+  Train KL: 7.9552 | Val KL: 7.9820  Train Recon: 179.5411 | Val Recon: 208.8307
+
+  Anomaly Detection (threshold=208.8307):    Precision: 1.0000 | Recall: 0.9935 | F1: 0.9968
+    TP: 647975674 | FP: 0 | FN: 4213770 | TN: 0
+**************************************************************************************************
+Epoch 14/30 Summary:
+  Train Loss: -171.1327 | Val Loss: -199.8089
+  Train KL: 8.9807 | Val KL: 8.9259  Train Recon: 180.1134 | Val Recon: 208.7348
+
+  Anomaly Detection (threshold=208.7348):    Precision: 1.0000 | Recall: 0.9909 | F1: 0.9954
+    TP: 646264628 | FP: 0 | FN: 5924816 | TN: 0
+**************************************************************************************************
+Epoch 15/30 Summary:
+  Train Loss: -188.3165 | Val Loss: -203.9037
+  Train KL: 7.5351 | Val KL: 6.6679  Train Recon: 195.8516 | Val Recon: 210.5715
+
+  Anomaly Detection (threshold=210.5715):    Precision: 1.0000 | Recall: 0.9933 | F1: 0.9966
+    TP: 647796908 | FP: 0 | FN: 4392536 | TN: 0
+**************************************************************************************************
+Epoch 16/30 Summary:
+  Train Loss: -189.0962 | Val Loss: -168.9640
+  Train KL: 6.4533 | Val KL: 7.5790  Train Recon: 195.5495 | Val Recon: 176.5430
+
+  Anomaly Detection (threshold=176.5430):    Precision: 1.0000 | Recall: 0.9959 | F1: 0.9979
+    TP: 649507954 | FP: 0 | FN: 2681490 | TN: 0
+**************************************************************************************************
+Epoch 17/30 Summary:
+  Train Loss: -196.9135 | Val Loss: -213.2333
+  Train KL: 6.2663 | Val KL: 5.3780  Train Recon: 203.1798 | Val Recon: 218.6113
+
+  Anomaly Detection (threshold=218.6113):    Precision: 1.0000 | Recall: 0.9926 | F1: 0.9963
+    TP: 647337224 | FP: 0 | FN: 4852220 | TN: 0
+**************************************************************************************************
+Epoch 18/30 Summary:
+  Train Loss: -202.2507 | Val Loss: -224.5738
+  Train KL: 5.4109 | Val KL: 5.2079  Train Recon: 207.6616 | Val Recon: 229.7818
+
+  Anomaly Detection (threshold=229.7818):    Precision: 1.0000 | Recall: 0.9937 | F1: 0.9968
+    TP: 648052288 | FP: 0 | FN: 4137156 | TN: 0
+**************************************************************************************************
+Epoch 19/30 Summary:
+  Train Loss: -198.9552 | Val Loss: -214.3400
+  Train KL: 5.1077 | Val KL: 4.8969  Train Recon: 204.0628 | Val Recon: 219.2369
+
+  Anomaly Detection (threshold=219.2369):    Precision: 1.0000 | Recall: 0.9946 | F1: 0.9973
+    TP: 648639662 | FP: 0 | FN: 3549782 | TN: 0
+**************************************************************************************************
+Epoch 20/30 Summary:
+  Train Loss: -203.3067 | Val Loss: -227.2130
+  Train KL: 4.8330 | Val KL: 4.3613  Train Recon: 208.1397 | Val Recon: 231.5743
+
+  Anomaly Detection (threshold=231.5743):    Precision: 1.0000 | Recall: 0.9936 | F1: 0.9968
+    TP: 648001212 | FP: 0 | FN: 4188232 | TN: 0
+**************************************************************************************************
+Epoch 21/30 Summary:
+  Train Loss: -203.3008 | Val Loss: -211.7067
+  Train KL: 4.7272 | Val KL: 4.6436  Train Recon: 208.0279 | Val Recon: 216.3503
+
+  Anomaly Detection (threshold=216.3503):    Precision: 1.0000 | Recall: 0.9934 | F1: 0.9967
+    TP: 647899060 | FP: 0 | FN: 4290384 | TN: 0
+**************************************************************************************************
+Epoch 22/30 Summary:
+  Train Loss: -206.1846 | Val Loss: -24.5954
+  Train KL: 4.7103 | Val KL: 4.3493  Train Recon: 210.8948 | Val Recon: 28.9447
+
+  Anomaly Detection (threshold=28.9447):    Precision: 1.0000 | Recall: 0.8945 | F1: 0.9443
+    TP: 583364534 | FP: 0 | FN: 68824910 | TN: 0
+**************************************************************************************************
+Epoch 23/30 Summary:
+  Train Loss: -209.5535 | Val Loss: -194.2809
+  Train KL: 4.4912 | Val KL: 4.5336  Train Recon: 214.0447 | Val Recon: 198.8145
+
+  Anomaly Detection (threshold=198.8145):    Precision: 1.0000 | Recall: 0.9950 | F1: 0.9975
+    TP: 648946118 | FP: 0 | FN: 3243326 | TN: 0
+**************************************************************************************************
+Epoch 24/30 Summary:
+  Train Loss: -210.9186 | Val Loss: -228.2382
+  Train KL: 4.7025 | Val KL: 4.4064  Train Recon: 215.6211 | Val Recon: 232.6446
+
+  Anomaly Detection (threshold=232.6446):    Precision: 1.0000 | Recall: 0.9941 | F1: 0.9971
+    TP: 648358744 | FP: 0 | FN: 3830700 | TN: 0
+**************************************************************************************************
+Epoch 25/30 Summary:
+  Train Loss: -209.2385 | Val Loss: -188.6906
+  Train KL: 4.6607 | Val KL: 5.3034  Train Recon: 213.8992 | Val Recon: 193.9940
+
+  Anomaly Detection (threshold=193.9940):    Precision: 1.0000 | Recall: 0.9968 | F1: 0.9984
+    TP: 650120866 | FP: 0 | FN: 2068578 | TN: 0
+**************************************************************************************************
+Epoch 26/30 Summary:
+  Train Loss: -210.8591 | Val Loss: -228.2791
+  Train KL: 4.8446 | Val KL: 4.4690  Train Recon: 215.7037 | Val Recon: 232.7481
+
+  Anomaly Detection (threshold=232.7481):    Precision: 1.0000 | Recall: 0.9935 | F1: 0.9967
+    TP: 647924598 | FP: 0 | FN: 4264846 | TN: 0
+**************************************************************************************************
+Epoch 27/30 Summary:
+  Train Loss: -208.7989 | Val Loss: -222.6400
+  Train KL: 4.9260 | Val KL: 5.2212  Train Recon: 213.7249 | Val Recon: 227.8612
+
+  Anomaly Detection (threshold=227.8612):    Precision: 1.0000 | Recall: 0.9940 | F1: 0.9970
+    TP: 648256592 | FP: 0 | FN: 3932852 | TN: 0
+**************************************************************************************************
+Epoch 28/30 Summary:
+  Train Loss: -212.3497 | Val Loss: -210.5378
+  Train KL: 4.8188 | Val KL: 4.8048  Train Recon: 217.1685 | Val Recon: 215.3426
+
+  Anomaly Detection (threshold=215.3426):    Precision: 1.0000 | Recall: 0.9957 | F1: 0.9978
+    TP: 649380264 | FP: 0 | FN: 2809180 | TN: 0
+**************************************************************************************************
+Epoch 29/30 Summary:
+  Train Loss: -216.5062 | Val Loss: -224.1891
+  Train KL: 4.8693 | Val KL: 5.0768  Train Recon: 221.3755 | Val Recon: 229.2660
+
+  Anomaly Detection (threshold=229.2660):    Precision: 1.0000 | Recall: 0.9946 | F1: 0.9973
+    TP: 648690738 | FP: 0 | FN: 3498706 | TN: 0
+**************************************************************************************************
+Epoch 30/30 Summary:
+  Train Loss: -217.8056 | Val Loss: -235.1966
+  Train KL: 4.9444 | Val KL: 4.9140  Train Recon: 222.7500 | Val Recon: 240.1106
+
+  Anomaly Detection (threshold=240.1106):    Precision: 1.0000 | Recall: 0.9792 | F1: 0.9895
+    TP: 638654304 | FP: 0 | FN: 13535140 | TN: 0
+**************************************************************************************************

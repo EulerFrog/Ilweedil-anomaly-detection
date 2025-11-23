@@ -503,6 +503,7 @@ def train(
         # Save last checkpoint
         torch.save(checkpoint, checkpoint_folder / 'last.ckpt')
 
+    f.close()
 
     print("\nTraining completed!")
     print(f"Model saved in: {experiment_folder}")
