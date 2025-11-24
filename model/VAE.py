@@ -96,9 +96,13 @@ class VAEAnomalyDetection(nn.Module, ABC):
             - latent_sigma: Standard deviation of the latent space.
             - z: Sampled latent space.
         """
+        # print(x)
         pred_result = self.predict(x)
         x = x.unsqueeze(0)
         recon_dist = Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
+
+
+
         log_lik = recon_dist.log_prob(x).mean(dim=0).mean(dim=0).sum()
         kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
         loss = kl - log_lik
