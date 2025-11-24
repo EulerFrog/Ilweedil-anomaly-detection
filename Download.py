@@ -346,8 +346,6 @@ def reformat_NIDS_dataset():
     for col in numeric_cols:
         NIDS_df = min_max(NIDS_df, col)
 
-    # breakpoint()
-
     # write csv
     NIDS_df.to_csv("NIDS_cleaned_dataset.csv", index=False)
 

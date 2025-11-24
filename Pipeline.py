@@ -405,15 +405,15 @@ def train(
         # avg_val_recon is log-likelihood (positive for normal samples)
         # We're using -log_lik as reconstruction error, so negate and scale
         # avg_val_recon_error = -avg_val_recon  # Convert to reconstruction error
-        # threshold = avg_val_recon_error * 1.25  # Higher error = more likely anomaly
+        # threshold = avg_val_recon_error * 1.5  # Higher error = more likely anomaly
 
-        avg_val_recon_error = avg_val_recon
-        threshold = avg_val_recon_error
+        avg_val_recon_error = -avg_val_recon
+        threshold = avg_val_recon_error * 1.5
 
-        print("Avg val recon error: ")
-        print(avg_val_recon_error)
-        print("Anomaly Threshold: ")
-        print(threshold)
+        # print("Avg val recon error: ")
+        # print(avg_val_recon_error)
+        # print("Anomaly Threshold: ")
+        # print(threshold)
 
         # i = 0
         # for i in range(0,100):
@@ -428,7 +428,7 @@ def train(
         # input()
 
         # Make predictions: 1 if reconstruction error > threshold, 0 otherwise
-        predictions = (anomaly_recon_errors < (threshold)).astype(int)
+        predictions = (anomaly_recon_errors > (threshold)).astype(int)
 
         # Calculate confusion matrix elements
         true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))

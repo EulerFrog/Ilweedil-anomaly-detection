@@ -157,7 +157,7 @@ class VAEAnomalyDetection(nn.Module, ABC):
             and False represents a normal sample.
         """
         p = self.reconstructed_probability(x)
-        return p < alpha, p
+        return p < alpha
 
     def reconstructed_probability(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -176,7 +176,6 @@ class VAEAnomalyDetection(nn.Module, ABC):
         recon_dist = Normal(pred['recon_mu'], pred['recon_sigma'])
         x = x.unsqueeze(0)
         p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)
-        p = -p # Negative log-likelihood as error
         return p
 
     def generate(self, batch_size: int = 1) -> torch.Tensor:
