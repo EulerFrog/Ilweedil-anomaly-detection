@@ -8,12 +8,10 @@ import os
 def main():
 
     # Load dataset 
-    dataset = VAEDataset(from_file=True, data_file_path=os.getcwd() + "\\data\\data.csv")
+    dataset = VAEDataset(from_file=True, data_file_path=os.getcwd() + "/NIDS_cleaned_dataset.csv")
 
     # Train and test model on dataset
-    train_test(
-        dataset=dataset
-        )
+    train_test(dataset=dataset)
 
 if __name__ == '__main__':
     main()

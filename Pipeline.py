@@ -6,7 +6,7 @@ from ModelInfo import ModelInfo
 from Dataset import VAEDataset
 import torch
 import yaml
-from path import Path
+from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
