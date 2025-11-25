@@ -259,7 +259,7 @@ def train(
 
             # Forward pass
             optimizer.zero_grad()
-            output = model.forward(x)
+            output = model.forward(x) 
             loss = output['loss']
 
             # Backward pass
@@ -369,7 +369,8 @@ def train(
                     batch_labels_list = None
 
                 # Calculate per-sample reconstruction errors
-                # Get the reconstruction distribution
+                # Get the reconstruction distribution 
+
                 pred_result = model.predict(x)
                 x_expanded = x.unsqueeze(0)  # Shape: [1, batch_size, features]
                 recon_dist = torch.distributions.Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
