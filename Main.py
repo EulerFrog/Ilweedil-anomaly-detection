@@ -14,7 +14,7 @@ def main():
     # Train and test model on dataset
     train_test(
         dataset=dataset,
-        train_benign_dataset_size_percentage=0.1,
+        train_benign_dataset_size_percentage=0.001,
         train_anomaly_dataset_size_percentage=0.2,
         test_benign_dataset_size_percentage=0.05,
         test_anomaly_dataset_size_percentage=0.6

@@ -97,16 +97,25 @@ class VAEAnomalyDetection(nn.Module, ABC):
             - z: Sampled latent space.
         """
         # print(x)
-        pred_result = self.predict(x)
+        pred_result = self.predict(x) 
         x = x.unsqueeze(0)
+
+        ###########################################################
+        #   Original
         recon_dist = Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
-
-
-
         log_lik = recon_dist.log_prob(x).mean(dim=0).mean(dim=0).sum()
         kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
         loss = kl - log_lik
         return dict(loss=loss, kl=kl, recon_loss=log_lik, **pred_result)
+
+        #   Modified
+        # kl_sum = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
+        # kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0)
+        # loss = -1 * kl_sum
+        # return dict(loss=loss, kl=kl, recon_loss=loss, **pred_result)
+        #
+        ###########################################################
+
 
     def predict(self, x) -> dict:
         """
@@ -173,9 +182,22 @@ class VAEAnomalyDetection(nn.Module, ABC):
         """
         with torch.no_grad():
             pred = self.predict(x)
-        recon_dist = Normal(pred['recon_mu'], pred['recon_sigma'])
+
+        ###########################################################
+        #   Original
+        # recon_dist = Normal(pred['recon_mu'], pred['recon_sigma'])
+        # x = x.unsqueeze(0)
+        # p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)
+
+        #   Modified
         x = x.unsqueeze(0)
-        p = recon_dist.log_prob(x).exp().mean(dim=0).mean(dim=-1)
+        p = Normal(pred['recon_mu'], pred['recon_sigma']).log_prob(x).mean(dim=0).mean(dim=-1)
+        
+        # print(p)
+        # print(p.size(dim=0))
+        # input()
+        ###########################################################
+
         return p
 
     def generate(self, batch_size: int = 1) -> torch.Tensor:
@@ -192,6 +214,21 @@ class VAEAnomalyDetection(nn.Module, ABC):
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
         recon_sigma = softplus(recon_sigma)
         return recon_mu + recon_sigma * torch.rand_like(recon_sigma)
+
+    def prior_sample(self, batch_size: int = 1) -> torch.Tensor:
+        """
+        Generates a sample from the learned prior distribution.
+
+        Args:
+            batch_size: Number of samples to generate.
+
+        Returns:
+            A tensor of shape (batch_size, num_features) containing the generated samples.
+        """
+        z = self.prior.sample((batch_size, self.latent_size))
+        recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
+        recon_sigma = softplus(recon_sigma)
+        return recon_mu, recon_sigma
 
 
 class VAEAnomalyTabular(VAEAnomalyDetection):
