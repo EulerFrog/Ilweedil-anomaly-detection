@@ -147,8 +147,9 @@ def train(
         args: dict - Command-line arguments in dictionary form.
         name_of_model: str - Name of the instance of the model trained, evaluated, and tested
         dataset: VAEDataset - dataset containing data loaders for the pipeline.
-        train_dataset_size: int - represents the number of records the dataloader used in training should have
-        validation_dataset_size: int - represents the number of records the dataloader used in validation should have
+        train_dataset_size: int - represents the number of benign records the dataloader used in training should have
+        validation_dataset_size: int - represents the number of benign records the dataloader used in validation should have
+        test_dataset_size: int - represents the number of anomalou records the dataloader used in validation should have
         model_class: object - The autoencoder class to use (e.g., VAEAnomalyTabular). If None, uses default.
     """
     # Locals
@@ -193,15 +194,13 @@ def train(
         batch_size=args.batch_size, 
         size = train_dataset_size
         )
-
     val_dloader = dataset.get_benign_dataloader(
         batch_size=args.batch_size, 
         size = validation_dataset_size
         )
-    test_dloader = dataset.get_dataloader(
+    test_dloader = dataset.get_anomalous_dataloader(
         batch_size=args.batch_size,
-        benign_size=math.floor(test_dataset_size/2),
-        anomalous_size=math.ceil(test_dataset_size/2)
+        size=test_dataset_size
     )
 
     # Create checkpoint folder
@@ -235,6 +234,8 @@ def train(
     # Training loop
     best_val_loss = float('inf')
     global_step = 0
+
+    f = open("./measuring_loss_over_time.txt", "w")
 
     for epoch in range(args.epochs):
 
@@ -403,11 +404,31 @@ def train(
         # Calculate threshold based on validation set
         # avg_val_recon is log-likelihood (positive for normal samples)
         # We're using -log_lik as reconstruction error, so negate and scale
-        avg_val_recon_error = -avg_val_recon  # Convert to reconstruction error
-        threshold = avg_val_recon_error * 1.5  # Higher error = more likely anomaly
+        # avg_val_recon_error = -avg_val_recon  # Convert to reconstruction error
+        # threshold = avg_val_recon_error * 1.5  # Higher error = more likely anomaly
+
+        avg_val_recon_error = -avg_val_recon
+        threshold = avg_val_recon_error * 1.5
+
+        # print("Avg val recon error: ")
+        # print(avg_val_recon_error)
+        # print("Anomaly Threshold: ")
+        # print(threshold)
+
+        # i = 0
+        # for i in range(0,100):
+        #     print("Test1: Threshold multiplier <" + str(i*0.01) + "> Threshold <" + str(avg_val_recon_error * (1+(i*0.01))) + "> Avg val recon <" + str(avg_val_recon_error) + ">")
+        #     predictions = (anomaly_recon_errors < avg_val_recon_error * (1+(i*0.01))).astype(int)
+        #     true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))
+        #     false_positives = np.sum((predictions == 1) & (anomaly_labels == 0))
+        #     false_negatives = np.sum((predictions == 0) & (anomaly_labels == 1))
+        #     true_negatives = np.sum((predictions == 0) & (anomaly_labels == 0))
+        #     print(f"Total: {predictions.__len__()} - TP: <{true_positives}> FP: <{false_positives}> FN: <{false_negatives}> TN: <{true_negatives}>")
+
+        # input()
 
         # Make predictions: 1 if reconstruction error > threshold, 0 otherwise
-        predictions = (anomaly_recon_errors > threshold).astype(int)
+        predictions = (anomaly_recon_errors > (threshold)).astype(int)
 
         # Calculate confusion matrix elements
         true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))
@@ -450,6 +471,17 @@ def train(
         # print(f"    Normal Recon: {avg_normal_recon:.4f} | Anomaly Recon: {avg_anomaly_recon:.4f}")
         print(f"    TP: {true_positives} | FP: {false_positives} | FN: {false_negatives} | TN: {true_negatives}")
 
+
+        f.write(f"\nEpoch {epoch+1}/{args.epochs} Summary:\n")
+        f.write(f"  Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}\n")
+        f.write(f"  Train KL: {avg_train_kl:.4f} | Val KL: {avg_val_kl:.4f}")
+        f.write(f"  Train Recon: {avg_train_recon:.4f} | Val Recon: {avg_val_recon:.4f}\n")
+        f.write(f"\n  Anomaly Detection (threshold={threshold:.4f}):")
+        f.write(f"    Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1_score:.4f}\n")
+        f.write(f"    TP: {true_positives} | FP: {false_positives} | FN: {false_negatives} | TN: {true_negatives}\n")
+        f.write(f"**************************************************************************************************")
+        
+
         # Save checkpoint for this epoch
         checkpoint = {
             'epoch': epoch,
@@ -471,6 +503,7 @@ def train(
         # Save last checkpoint
         torch.save(checkpoint, checkpoint_folder / 'last.ckpt')
 
+    f.close()
 
     print("\nTraining completed!")
     print(f"Model saved in: {experiment_folder}")
@@ -481,7 +514,13 @@ def train(
     # When finished, return path to completed model at last checkpoint
     return 
 
-def train_test(dataset: VAEDataset):
+def train_test(
+        dataset: VAEDataset,
+        train_benign_dataset_size_percentage: float,
+        train_anomaly_dataset_size_percentage: float,
+        test_benign_dataset_size_percentage: float,
+        test_anomaly_dataset_size_percentage: float,
+    ):
     """
         Trains and then tests a model based on args inputted to python. 
 
@@ -495,6 +534,17 @@ def train_test(dataset: VAEDataset):
             .
             .
             test n
+
+        Args:
+            dataset: VAEDataset - VAE dataset to train/test on
+            train_benign_dataset_size_percentage: float - For training, the percentage of all benign data to use for the training/validation (and of the percentage, train will be allocated 80% and validate 20%)
+            train_anomaly_dataset_size_percentage: float -  For training, the percentage of all anomalous data to use for the testing 
+            test_benign_dataset_size_percentage: float - For test, the percentage of all benign data to use for the test set
+            test_anomaly_dataset_size_percentage: float - For test, the percentage of all anomalous data to use for the test set
+
+            Note: 
+                (train_benign_dataset_size_percentage + test_benign_dataset_size_percentage) should add up to 1 or less
+                (train_anomaly_dataset_size_percentage + test_anomaly_dataset_size_percentage) should add up to 1 or less
     """
 
     # Locals
@@ -503,6 +553,13 @@ def train_test(dataset: VAEDataset):
     test_folder_name = os.getcwd() + '\\test_folder'
     str_holder = ""
     i = 1
+    train_train_benign_size = 0.0
+    train_validate_benign_size = 0.0
+    train_test_anomalous_size = 0.0
+    test_anomalous_size = 0.0
+    test_benign_size = 0.0
+    temp_float1 = 0
+    temp_float2 = 0
 
     # Get arguments
     args = get_args()
@@ -513,7 +570,7 @@ def train_test(dataset: VAEDataset):
 
     # Within test_folder, check for models of the same name as this test. If they exist, create a new
     #   name for the model that isn't seen in the folder.
-    test_model_path = test_folder_name + "\\" + args.test_name
+    test_model_path = test_folder_name + "\\(##)" + args.test_name
     str_holder = test_model_path
     while os.path.isdir(str_holder):
         str_holder = test_model_path + " " + str(i)
@@ -522,14 +579,40 @@ def train_test(dataset: VAEDataset):
     if (i > 1):
         args.test_name = args.test_name + " " + str(i)
 
+
+    # Calculate size of data loaders for train/validate/test
+    #   Validate split arguments are valid
+    temp_float1 = train_benign_dataset_size_percentage + test_benign_dataset_size_percentage
+    temp_float2 = train_anomaly_dataset_size_percentage + test_anomaly_dataset_size_percentage
+    if  (temp_float1 > 1 
+         or temp_float2 > 1 
+         or (train_benign_dataset_size_percentage > 1 or train_benign_dataset_size_percentage < 0)
+         or (test_benign_dataset_size_percentage > 1 or test_benign_dataset_size_percentage < 0)
+         or (train_anomaly_dataset_size_percentage > 1 or train_anomaly_dataset_size_percentage < 0)
+         or (test_anomaly_dataset_size_percentage > 1 or test_anomaly_dataset_size_percentage < 0)):
+        err_str = f'train_test() (err): Invalid split entered (total benign allocation requested = '
+        err_str = err_str + f"{temp_float1} and total anomalous allocation requested = {temp_float2}; requested percentages -  )"
+        err_str = err_str + f" train_benign_dataset_size_percentage: {train_benign_dataset_size_percentage}; "
+        err_str = err_str + f" test_benign_dataset_size_percentage: {test_benign_dataset_size_percentage}; "
+        err_str = err_str + f" train_anomaly_dataset_size_percentage: {train_anomaly_dataset_size_percentage}; "
+        err_str = err_str + f" test_anomaly_dataset_size_percentage: {test_anomaly_dataset_size_percentage};) "
+        raise Exception(err_str)
+    
+    #   Create sizes of each partition
+    train_train_benign_size = math.floor(dataset.benign_data_length * train_benign_dataset_size_percentage * 0.8)
+    train_validate_benign_size = math.floor(dataset.benign_data_length * train_benign_dataset_size_percentage * 0.2)
+    train_test_anomalous_size = math.floor(dataset.anomalous_data_length * train_anomaly_dataset_size_percentage)
+    test_benign_size = math.floor(dataset.benign_data_length * test_benign_dataset_size_percentage)
+    test_anomalous_size = math.floor(dataset.anomalous_data_length * test_anomaly_dataset_size_percentage)
+
     # Train the model
     train(
         args, 
         args.test_name, 
         dataset,
-        test_dataset_size=250,
-        train_dataset_size=6000,
-        validation_dataset_size=500,
+        test_dataset_size=train_test_anomalous_size,
+        train_dataset_size=train_train_benign_size,
+        validation_dataset_size=train_validate_benign_size,
         model_class=VAEAnomalyTabular
     )
 
@@ -538,6 +621,8 @@ def train_test(dataset: VAEDataset):
     model.LoadModel()
     model.MassTestModel(
         dataset, 
+        test_anomalous_size,
+        test_benign_size,
         args.num_tests, 
         test_model_path, 
         args.test_name

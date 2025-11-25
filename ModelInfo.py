@@ -46,13 +46,16 @@ class ModelInfo:
 
 
         # Search for 'saved_models' in cwd. If found, continue
-        for file in os.listdir('.'):
+        for file in os.listdir(os.getcwd()):
+            # print(file)
             if (file == "saved_models"):
+                # print("****")
                 for file2 in os.listdir('./saved_models'):
+                    # print(file2)
                     if (file2 == model_id):
                         self.model_path = os.getcwd() + '/saved_models/' + model_id
 
-
+        print(self.model_path)
 
         # Parse and extract model parameters from 'config.yaml'
         yaml = open(self.model_path + "/config.yaml", "r")
@@ -148,10 +151,28 @@ class ModelInfo:
             return 2
             
                 
-    def MassTestModel(self, dataset: VAEDataset, test_rounds:int , results_output_path: str, test_name: str, alpha: float = 0.5):
+    def MassTestModel(
+            self, 
+            dataset: VAEDataset, 
+            anomalous_test_records: int,
+            benign_test_records: int,
+            test_rounds:int , 
+            results_output_path: str, 
+            test_name: str, 
+            alpha: float = 0.5
+        ):
         """
             Runs "test_rounds" tests on the model using "dataset" to do so. Outputs the results as a .csv file 
             to "results_output_path".
+
+            Args: 
+                dataset: VAEDataset, - dataset to pull records from for testing
+                anomalous_test_records: int, - number of anomalous test records available in testing from the dataset
+                benign_test_records: int, - number of benign test records available in testing from the dataset
+                test_rounds:int , - number of testing rounds
+                results_output_path: str, - path to store the test results
+                test_name: str, - name of the test
+                alpha: float = 0.5 - sensitivity for anomaly detection
         """
 
         # Locals
@@ -170,20 +191,21 @@ class ModelInfo:
                 "avg":0
             }
 
-        # Initialize test_data_loader as dataloader of the remaining data records in the VAEDataset
-        remaining_anomalous_data = dataset.anomalous_data_length - dataset.unallocated_anomalous_data_start_index
-        remaining_benign_data = dataset.benign_data_length - dataset.unallocated_benign_data_start_index
+        # Initialize test_data_loader as dataloader from data records in the VAEDataset
+        #   with 'benign_test_records' benign records and 'anomalous_test_records' anomalous records
         test_data_loader = dataset.get_dataloader(
             self.batch_size,
-            benign_size=remaining_benign_data,
-            anomalous_size=remaining_anomalous_data
+            benign_size=benign_test_records,
+            anomalous_size=anomalous_test_records
         )
 
         # Perform tests. For each test round, do a test of size 'batch_size'
         i = 0
         for data_records, data_record_labels in test_data_loader:            
 
-            results.append(self.TestModel(data_records, data_record_labels))
+            result = self.TestModel(data_records, data_record_labels, alpha)
+            if (result != -1):
+                results.append(result)
 
             i = i + 1
             if (i >= test_rounds):
@@ -216,6 +238,10 @@ class ModelInfo:
             # print(str(results_aggregates[field]["avg"]))
 
         # Write test results to file
+        #   Add accuracy to results file path in the beginning
+        if "##" in results_output_path:
+            results_output_path = results_output_path.replace("##", str(results_aggregates["Accuracy"]["avg"]))
+            print(results_output_path)
         with open(results_output_path + ".csv", "w+") as output_file:
 
             # Write name of test
@@ -341,7 +367,7 @@ class ModelInfo:
                 this is the case, their values will be set to -1.
 
                 If unsuccessful:
-                {} 
+                -1
         """
 
         # Locals
@@ -359,7 +385,8 @@ class ModelInfo:
 
         # If model isn't loaded, return
         if (self.model == None):
-            return {}
+            print("Error - Model not loaded.")
+            return -1
         
 
         # Test batch size is always equal to model hyper parameter "batch size"
@@ -370,16 +397,27 @@ class ModelInfo:
             print("Error - Could not test dataset.")
             print("For record tensor, expected size of: [" + str(self.batch_size) + "," + str(self.input_size) + "]")
             print("Got size of: " + str(test_dataset_records_size))
-            return {}
+            return -1
         if (test_dataset_labels_size[0] != self.batch_size):
             print("Error - Could not test dataset.")
             print("For label tensor, expected size of: [" + self.batch_size + "," + self.input_size + "]")
             print("Got size of: " + test_dataset_labels_size)
-            return {}
+            return -1
         
         # Run tests
         result = self.model.is_anomaly(test_dataset_records, alpha)
 
+        # print("records")
+        # print(test_dataset_records)
+        # print("labels")
+        # print(test_dataset_labels)
+        # print("error")
+        # print(p)
+        # print("alpha")
+        # print(alpha)
+        # print("result")
+        # print(result)
+        # input()
         # Run calculations based on results.
         i = 0
         while (i < self.batch_size):
@@ -388,13 +426,13 @@ class ModelInfo:
             # print(test_dataset_labels[i])
             # print(result[i])
             # print('***')
-            if (test_dataset_labels[i] == 0 and result[i] == 0):
+            if (test_dataset_labels[i] == 0 and result[i] == False):
                 TN = TN + 1
-            elif (test_dataset_labels[i] == 1 and result[i] == 0):
+            elif (test_dataset_labels[i] == 1 and result[i] == False):
                 FN = FN + 1
-            elif (test_dataset_labels[i] == 0 and result[i] == 1):
+            elif (test_dataset_labels[i] == 0 and result[i] == True):
                 FP = FP + 1
-            elif (test_dataset_labels[i] == 1 and result[i] == 1):
+            elif (test_dataset_labels[i] == 1 and result[i] == True):
                 TP = TP + 1
             i = i + 1
 

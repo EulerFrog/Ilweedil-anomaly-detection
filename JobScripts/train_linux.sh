@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# HTCondor training script for GoNogo neurogym task
-# Usage: ./train.sh MODEL_TYPE ETA LAMBDA HIDDEN_DIM NUM_EPISODES MAX_EPISODE_STEPS SUFFIX
-
 set -e  # Exit on error
 
 # Parse arguments
@@ -16,7 +13,7 @@ ALPHA=$7
 NUM_TESTS=$8
     
 # experiment_name, input_size, latent_size, batch_size, num_resamples, epochs, lr, alpha
-
+ 
 # Generate experiment name: gonogo-model-verb-noun
 EXP_NAME="VAE-IDS-${EXPERIMENT_NAME}"
 
@@ -44,7 +41,7 @@ echo ""
 
 # Run training
 echo "Starting training..."
-../../anaconda3/bin/python ./main.py \
+../anaconda3/bin/python ./Main.py \
     --test-name ${EXP_NAME} \
     --latent-size ${LATENT_SIZE} \
     --num-resamples ${NUM_RESAMPLES} \

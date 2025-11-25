@@ -1,5 +1,5 @@
 universe = vanilla
-executable = ./train.sh
+executable = ./train_linux.sh
 
 # Resource requests (GPU training)
 request_cpus = 2
