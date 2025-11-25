@@ -1,5 +1,5 @@
 universe = vanilla
-executable = ./train_gonogo.sh
+executable = ./train_repo.sh
 
 # Resource requests (GPU training)
 request_cpus = 2
@@ -18,4 +18,4 @@ max_materialize = 50
 # Pass arguments from args file
 # Format: 
 arguments = $(args)
-Queue arguments from ./train_gonogo_args.txt
+Queue arguments from ./train_args.txt

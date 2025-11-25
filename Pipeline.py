@@ -570,7 +570,7 @@ def train_test(
 
     # Within test_folder, check for models of the same name as this test. If they exist, create a new
     #   name for the model that isn't seen in the folder.
-    test_model_path = test_folder_name + "\\" + args.test_name
+    test_model_path = test_folder_name + "\\(##)" + args.test_name
     str_holder = test_model_path
     while os.path.isdir(str_holder):
         str_holder = test_model_path + " " + str(i)
