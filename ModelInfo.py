@@ -46,13 +46,16 @@ class ModelInfo:
 
 
         # Search for 'saved_models' in cwd. If found, continue
-        for file in os.listdir('.'):
+        for file in os.listdir(os.getcwd()):
+            # print(file)
             if (file == "saved_models"):
+                # print("****")
                 for file2 in os.listdir('./saved_models'):
+                    # print(file2)
                     if (file2 == model_id):
                         self.model_path = os.getcwd() + '/saved_models/' + model_id
 
-
+        print(self.model_path)
 
         # Parse and extract model parameters from 'config.yaml'
         yaml = open(self.model_path + "/config.yaml", "r")
@@ -200,7 +203,9 @@ class ModelInfo:
         i = 0
         for data_records, data_record_labels in test_data_loader:            
 
-            results.append(self.TestModel(data_records, data_record_labels, alpha))
+            result = self.TestModel(data_records, data_record_labels, alpha)
+            if (result != -1):
+                results.append(result)
 
             i = i + 1
             if (i >= test_rounds):
@@ -233,6 +238,10 @@ class ModelInfo:
             # print(str(results_aggregates[field]["avg"]))
 
         # Write test results to file
+        #   Add accuracy to results file path in the beginning
+        if "##" in results_output_path:
+            results_output_path = results_output_path.replace("##", str(results_aggregates["Accuracy"]["avg"]))
+            print(results_output_path)
         with open(results_output_path + ".csv", "w+") as output_file:
 
             # Write name of test
@@ -358,7 +367,7 @@ class ModelInfo:
                 this is the case, their values will be set to -1.
 
                 If unsuccessful:
-                {} 
+                -1
         """
 
         # Locals
@@ -376,7 +385,8 @@ class ModelInfo:
 
         # If model isn't loaded, return
         if (self.model == None):
-            return {}
+            print("Error - Model not loaded.")
+            return -1
         
 
         # Test batch size is always equal to model hyper parameter "batch size"
@@ -387,15 +397,15 @@ class ModelInfo:
             print("Error - Could not test dataset.")
             print("For record tensor, expected size of: [" + str(self.batch_size) + "," + str(self.input_size) + "]")
             print("Got size of: " + str(test_dataset_records_size))
-            return {}
+            return -1
         if (test_dataset_labels_size[0] != self.batch_size):
             print("Error - Could not test dataset.")
             print("For label tensor, expected size of: [" + self.batch_size + "," + self.input_size + "]")
             print("Got size of: " + test_dataset_labels_size)
-            return {}
+            return -1
         
         # Run tests
-        result, p = self.model.is_anomaly(test_dataset_records, alpha)
+        result = self.model.is_anomaly(test_dataset_records, alpha)
 
         # print("records")
         # print(test_dataset_records)
@@ -416,13 +426,13 @@ class ModelInfo:
             # print(test_dataset_labels[i])
             # print(result[i])
             # print('***')
-            if (test_dataset_labels[i] == 0 and result[i] == 0):
+            if (test_dataset_labels[i] == 0 and result[i] == False):
                 TN = TN + 1
-            elif (test_dataset_labels[i] == 1 and result[i] == 0):
+            elif (test_dataset_labels[i] == 1 and result[i] == False):
                 FN = FN + 1
-            elif (test_dataset_labels[i] == 0 and result[i] == 1):
+            elif (test_dataset_labels[i] == 0 and result[i] == True):
                 FP = FP + 1
-            elif (test_dataset_labels[i] == 1 and result[i] == 1):
+            elif (test_dataset_labels[i] == 1 and result[i] == True):
                 TP = TP + 1
             i = i + 1
 
