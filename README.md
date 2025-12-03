@@ -1,6 +1,6 @@
 # Variational autoencoder for anomaly detection
 
-**Team members**: Carlos Muratalla-Sanchez, Cooper Cox, Joe Ewert, John Sbur <br>
+**Team members**: Juan Carlos Muratalla-Sanchez, Cooper Cox, Joe Ewert, John Sbur <br>
 **Organization**: Western Washington University, Computer Science Department<br>
 **Project Desctiption**: Our goal was to create a system that is able to detect anomalies in netflow data. Our solution is the implementation of a Variational Autoencoder (VAE) which is trained on non-anomalous netflow data. This approach is based on the work of An et al. as well as an unofficial implementation of their work by Michdev.<br>
 - [Variational Autoencoder based Anomaly Detection using Reconstruction Probability by Jinwon An, Sungzoon Cho](https://www.semanticscholar.org/paper/Variational-Autoencoder-based-Anomaly-Detection-An-Cho/061146b1d7938d7a8dae70e3531a00fceb3c78e8)
@@ -190,3 +190,15 @@ model = ModelInfo(model_id={name}, model_input_size={input size}) <br>
 #test model<br>
 outliers = model.is_anomaly(X_test)<br>
 
+## Discussion
+During the implementation of this model, we encountered issues with reconstruction/dectection.<br>
+
+When trying to implement this VAE on OpenSearch data, we faced a barrier in collecting live "benign" data due to issues with OpenSearch, as our group only had access to alerts and summaries of benign data. In order to gather benign data to train the VAE, we used a NIDS dataset of benign data from the University of Queensland, linked below:<br>
+
+https://staff.itee.uq.edu.au/marius/NIDS_datasets/<br>
+
+After cleaning and processing this dataset, we implemented this dataset in our model to mitigate the missing data.<br>
+
+However, even after this change, our model was unable to properly detect malicious vs. benign data. Following a project review, we have found possible explanations leading to the reconstruction/detection issues.<br>
+
+1. The initial model that our group selected was not without flaw. During training, loss per epoch increased over time, and a possible cause of this is how the model uses unbounded reconstruction probability. The recontruction proability refers to the likelihood of the decoder generating the original output and can be used in the VAE's loss function. This is unbounded in this model, and could explain the behaviour in our loss per epoch. We are currently investigating this behavior and have determined that it is possbily configured incorrectly. We note that the benign and malicious data has similar reconstruction probabilites, which should not be.
