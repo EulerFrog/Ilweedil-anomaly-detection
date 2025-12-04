@@ -1,3 +1,11 @@
+"""
+    Download.py
+    Last modified: 12/3/25
+    Description: 
+        Holds the collection of methods responsible for retrieving and formatting datasets for
+        model training, validation, and testing.
+"""
+# Imports
 import requests
 from requests.auth import HTTPBasicAuth
 import json
