@@ -1,3 +1,11 @@
+"""
+    Download.py
+    Last modified: 12/3/25
+    Description: 
+        Holds the collection of methods responsible for retrieving and formatting datasets for
+        model training, validation, and testing.
+"""
+# Imports
 import requests
 from requests.auth import HTTPBasicAuth
 import json
@@ -233,7 +241,6 @@ def calculate_direction(NIDS_df):
     )
 
     return NIDS_df
-
 
 def rename_NIDS_columns(NIDS_df):
     col_name_mapping = {
