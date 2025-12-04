@@ -8,6 +8,11 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 
+'''
+    Parameters: String, String
+    Description: Pull data from opensearch using specific ip and port information. Modifications to query necessary to get benign data.
+    Returns: Dictionary
+'''
 def load_data(username, password):
     # Suppress HTTPS warnings (because verify=False)
     urllib3.disable_warnings(InsecureRequestWarning)
@@ -39,6 +44,12 @@ def load_data(username, password):
 
     return json.loads(response.text)
 
+
+'''
+    Parameters: Dictionary containing unfiltered opensearch data, "Empty" dictionary containing desired columns.
+    Description: Populates data dictionary with the desired information for our dataset
+    Returns: Dictionary
+'''
 def populate(raw_data, data):
   
     columns = data.keys()
@@ -64,6 +75,12 @@ def populate(raw_data, data):
 
     return data
 
+
+'''
+    Parameters: Dictionary
+    Description: Remaps numerical port numbers to categorical strings. Allows one hot encoding function to create columns that are human legible.
+    Returns: Dictionary
+'''
 def remap_ports(data):
     common_ports = {
         "80": "HTTP",
@@ -105,6 +122,12 @@ def remap_ports(data):
 
     return data
 
+
+'''
+    Parameters: Dataframe
+    Description: One hot encodes categorical columns (src_port, dest_port, protocol)
+    Returns: Dataframe
+'''
 def one_hot(df):
     categories = {
         "src_port": ["HTTP", "HTTPS", "SSH", "DNS", "DHCP", "SMTP", "SNMP", "RDP", "SQL", "FTP", "public", "private", "dynamic"],
@@ -130,6 +153,12 @@ def one_hot(df):
 
     return df_encoded
 
+
+'''
+    Parameters: Dataframe, String
+    Description: Min max normalization function that normalizes a columns to contain values between 0 and 1.
+    Returns: Dataframe
+'''
 def min_max(df, col):
     col_min = df[col].min()
     col_max = df[col].max()
@@ -137,15 +166,14 @@ def min_max(df, col):
 
     return df 
 
+'''
+    Parameters: Dictionary containing nested opensearch netflow data
+    Description: Main function that cleans opensearch dataset.
+    Returns: None (Writes/Creates a dataset as a csv)
+'''
 def create_csvdata(data_dict):
     raw_data = data_dict["hits"]["hits"]
     
-    #benign_flows = [hit for hit in data
-    #                if hit["_source"].get("suricata", {}).get("alert") in ({}, None)]
-    
-    #print(f"Found {len(benign_flows)} benign flows")
-    #print(f"Found {len(data) - len(benign_flows)} alert flows")
-
     data = {
         "src_port": [],
         "dest_port": [],
@@ -180,6 +208,12 @@ def create_csvdata(data_dict):
     # write csv
     df.to_csv("./data/data.csv", index=False)
 
+
+'''
+    Parameters: None (assumes command line arguments for username and password to pull opensearch data)
+    Description: Creates and cleans opensearch dataset.
+    Returns: None (Writes/Creates a dataset as a csv)
+'''
 def download_netflow_dataset():
     if len(sys.argv) != 3:
         print("ERROR: USERNAME and PASSWORD not specified.")
@@ -194,8 +228,19 @@ def download_netflow_dataset():
     # create csv of useful data
     create_csvdata(data_dict)
 
+
+# Functions below are for NIDS public dataset, NOT opensearch dataset
+
+'''
+    Parameters: Dataframe
+    Description: Simulates correct direction since opensearch data contains data with inherent direction based on who sent the first packet. We can't do
+            that with the NIDS dataset since we don't have that info. Instead, we need to make a best guess based on the port numbers and the in and out bytes.
+    Returns: Dataframe
+'''
 def calculate_direction(NIDS_df):
 
+    # if the src port is a public port then we assume the direction is to the client
+    # if the dest port is a public port then we assume the direction is to the server
     src_port_toclient = NIDS_df["L4_SRC_PORT"] < 1024
     dest_port_toserver = NIDS_df["L4_DST_PORT"] < 1024
 
@@ -204,10 +249,13 @@ def calculate_direction(NIDS_df):
     NIDS_df.loc[dest_port_toserver, 'flow_direction'] = 'to_server'
     NIDS_df.loc[src_port_toclient, 'flow_direction'] = 'to_client'
 
+    # If they aren't public ports then need to guess based on which side is transmitting more bytes
+    # More bytes going out signifies it's to the client and to server vice versa
     remaining_mask = NIDS_df['flow_direction'].isna()
     NIDS_df.loc[remaining_mask & (NIDS_df['OUT_BYTES'] > NIDS_df['IN_BYTES']), 'flow_direction'] = 'to_client'
     NIDS_df.loc[remaining_mask & (NIDS_df['OUT_BYTES'] <= NIDS_df['IN_BYTES']), 'flow_direction'] = 'to_server'
 
+    # create missing bytes to and pkts to columns based on direction of the data
     NIDS_df['bytes_to_server'] = np.where(
         NIDS_df['flow_direction'] == 'to_server',
         NIDS_df['IN_BYTES'],
@@ -235,6 +283,11 @@ def calculate_direction(NIDS_df):
     return NIDS_df
 
 
+'''
+    Parameters: Dataframe
+    Description: Converts dataframe to have consistent column names with opensearch dataset.
+    Returns: Dataframe
+'''
 def rename_NIDS_columns(NIDS_df):
     col_name_mapping = {
         "source_port": "src_port",
@@ -254,6 +307,11 @@ def rename_NIDS_columns(NIDS_df):
     return NIDS_df
 
 
+'''
+    Parameters: Dataframe
+    Description: Converts numerical src and dest ports to categories (HTTP, DNS, etc...). Makes one hot encoding function new col names human readable.
+    Returns: Dataframe
+'''
 def categorize_ports(NIDS_df):
     port_categories = {
         "80": "HTTP",
@@ -276,7 +334,7 @@ def categorize_ports(NIDS_df):
     NIDS_df["source_port"] = NIDS_df["L4_SRC_PORT"].map(port_categories)
     NIDS_df["destination_port"] = NIDS_df["L4_DST_PORT"].map(port_categories)
 
-    
+    # Handles ports that don't fit the common port categories like HTTP and HTTPS into either public, private, or dynamic
     src_public_mask = NIDS_df['source_port'].isna() & (NIDS_df['L4_SRC_PORT'] < 1024)
     NIDS_df.loc[src_public_mask, 'source_port'] = 'public'
     
@@ -297,6 +355,11 @@ def categorize_ports(NIDS_df):
     
     return NIDS_df
 
+'''
+    Parameters: Dataframe
+    Description: Converts numerical protocols to categories (tcp, udp, etc...). Makes one hot encoding function new col names human readable.
+    Returns: Dataframe
+'''
 def categorize_protocols(NIDS_df):
     protocol_categories = {
         6: "tcp",
@@ -311,6 +374,12 @@ def categorize_protocols(NIDS_df):
 
     return NIDS_df
 
+
+'''
+    Parameters: None (assumes system argument for path to dataset csv)
+    Description: Cleans and reformats most up to date public netflow dataset into format our VAE can handle
+    Returns: None (writes cleaned dataset to cleaned.csv)
+'''
 def reformat_NIDS_dataset():
     if len(sys.argv) != 2:
         print("ERROR: NIDS dataset not specified.")
