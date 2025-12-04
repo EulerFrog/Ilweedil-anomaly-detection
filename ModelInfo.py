@@ -1,12 +1,18 @@
+"""
+    ModelInfo.py
+    Last modified: 12/3/25
+    Description: 
+        Holds the wrapper class ModelInfo, which is able to load a VAE model previously trained 
+        and evaluate its performance.
+"""
+# Imports
 import os
-from pathlib import Path
 
 import torch
 from torch import Tensor
 from Dataset import VAEDataset
 from model.VAE import VAEAnomalyTabular
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+
 
 class ModelInfo:
     """
@@ -29,7 +35,8 @@ class ModelInfo:
             Takes a model_id as an input, representing the name of the folder containing the model
             in "saved_models"
         """    
-        # Define fields
+        
+        # Fields
         self.model_id = model_id
         self.model = None
         self.model_path = ""
@@ -45,17 +52,12 @@ class ModelInfo:
         self.steps_log_norm_params = None
 
 
-        # Search for 'saved_models' in cwd. If found, continue
+        # Search for 'saved_models' in cwd, which is required to load model information. If found, continue
         for file in os.listdir(os.getcwd()):
-            # print(file)
             if (file == "saved_models"):
-                # print("****")
                 for file2 in os.listdir('./saved_models'):
-                    # print(file2)
                     if (file2 == model_id):
                         self.model_path = os.getcwd() + '/saved_models/' + model_id
-
-        print(self.model_path)
 
         # Parse and extract model parameters from 'config.yaml'
         yaml = open(self.model_path + "/config.yaml", "r")
@@ -407,17 +409,6 @@ class ModelInfo:
         # Run tests
         result = self.model.is_anomaly(test_dataset_records, alpha)
 
-        # print("records")
-        # print(test_dataset_records)
-        # print("labels")
-        # print(test_dataset_labels)
-        # print("error")
-        # print(p)
-        # print("alpha")
-        # print(alpha)
-        # print("result")
-        # print(result)
-        # input()
         # Run calculations based on results.
         i = 0
         while (i < self.batch_size):
@@ -436,12 +427,6 @@ class ModelInfo:
                 TP = TP + 1
             i = i + 1
 
-        # print("Test results:")
-        # print("TP = " + str(TP))
-        # print("TN = " + str(TN))
-        # print("FP = " + str(FP))
-        # print("FN = " + str(FN))
-        
         acc = ((TP + TN) / (self.batch_size))
         if (TP+FP == 0):
             prec = -1
@@ -457,12 +442,7 @@ class ModelInfo:
             f1 = -1
         else:
             f1 = 2 * ((prec * rec)/(prec+rec))
-        # print("Accuracy = " +  str(acc))
-        # print("Precision = " + str(prec))
-        # print("Recall = " + str(rec))
-        # print("F1 = " + str(f1))
-
-        
+       
         # Pack up and return results
 
         #   Params

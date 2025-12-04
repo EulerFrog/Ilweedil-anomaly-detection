@@ -1,3 +1,10 @@
+"""
+    Pipeline.py
+    Last modified: 12/3/25
+    Description: 
+        Hold a collection of methods used to train a VAE model on netflow data records.
+"""
+# Imports
 import argparse
 from datetime import datetime
 import os
@@ -7,16 +14,14 @@ from Dataset import VAEDataset
 import torch
 import yaml
 from path import Path
-from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import numpy as np
 import math
 
 from model.VAE import VAEAnomalyTabular
-from torch.utils.data import Dataset, TensorDataset
+
 
 ROOT = Path(__file__).parent
 SAVED_MODELS = ROOT / 'saved_models'
@@ -215,16 +220,6 @@ def train(
         every_n_epochs=1,
     )
 
-    # Train model
-    # trainer = Trainer(
-    #     callbacks=[checkpoint],
-    #     max_epochs=args.epochs,
-    #     accelerator=args.device,
-    #     enable_progress_bar=not args.no_progress_bar,
-    # )
-    # trainer.fit(model, train_dloader, val_dloader)
-
-
     # Setup optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -259,12 +254,13 @@ def train(
 
             # Forward pass
             optimizer.zero_grad()
-            output = model.forward(x)
+            output = model.forward(x) 
             loss = output['loss']
 
             # Backward pass
             loss.backward()
             optimizer.step()
+
             # Accumulate losses
             train_loss_total += loss.item()
             train_kl_total += output['kl'].item()
@@ -345,6 +341,7 @@ def train(
 
         # Anomaly detection evaluation
         anomaly_recon_errors = []
+        recon_suprisals = []
         anomaly_labels = []
 
         #   Test iterator to contain both anomalous and benign data
@@ -369,19 +366,9 @@ def train(
                     batch_labels_list = None
 
                 # Calculate per-sample reconstruction errors
-                # Get the reconstruction distribution
-                pred_result = model.predict(x)
-                x_expanded = x.unsqueeze(0)  # Shape: [1, batch_size, features]
-                recon_dist = torch.distributions.Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
-
-                # Calculate negative log-likelihood per sample (reconstruction error)
-                # log_prob: [L, batch_size, features] -> mean over L and sum over features
-                log_lik_per_sample = recon_dist.log_prob(x_expanded).mean(dim=0).sum(dim=-1)  # [batch_size]
-                recon_error_per_sample = -log_lik_per_sample  # Negative log-likelihood as error
-
-                # Store reconstruction errors
-                batch_recon_errors = recon_error_per_sample.detach().cpu().numpy()
-                anomaly_recon_errors.extend(batch_recon_errors)
+                # Get the reconstruction distribution 
+                batch_recon_prob = model.reconstructed_probability(x).detach().cpu().numpy()
+                recon_suprisals.extend(batch_recon_prob)
 
                 # Get labels for this batch
                 if batch_labels_list is not None:
@@ -397,38 +384,11 @@ def train(
                         is_anomaly = 1 if label == test_iterator.anomaly_class else 0
                         anomaly_labels.append(is_anomaly)
 
-        # Convert to numpy arrays
-        anomaly_recon_errors = np.array(anomaly_recon_errors)
+        #   Modified
+        recon_suprisals = np.array(recon_suprisals)
         anomaly_labels = np.array(anomaly_labels)
-
-        # Calculate threshold based on validation set
-        # avg_val_recon is log-likelihood (positive for normal samples)
-        # We're using -log_lik as reconstruction error, so negate and scale
-        # avg_val_recon_error = -avg_val_recon  # Convert to reconstruction error
-        # threshold = avg_val_recon_error * 1.5  # Higher error = more likely anomaly
-
-        avg_val_recon_error = -avg_val_recon
-        threshold = avg_val_recon_error * 1.5
-
-        # print("Avg val recon error: ")
-        # print(avg_val_recon_error)
-        # print("Anomaly Threshold: ")
-        # print(threshold)
-
-        # i = 0
-        # for i in range(0,100):
-        #     print("Test1: Threshold multiplier <" + str(i*0.01) + "> Threshold <" + str(avg_val_recon_error * (1+(i*0.01))) + "> Avg val recon <" + str(avg_val_recon_error) + ">")
-        #     predictions = (anomaly_recon_errors < avg_val_recon_error * (1+(i*0.01))).astype(int)
-        #     true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))
-        #     false_positives = np.sum((predictions == 1) & (anomaly_labels == 0))
-        #     false_negatives = np.sum((predictions == 0) & (anomaly_labels == 1))
-        #     true_negatives = np.sum((predictions == 0) & (anomaly_labels == 0))
-        #     print(f"Total: {predictions.__len__()} - TP: <{true_positives}> FP: <{false_positives}> FN: <{false_negatives}> TN: <{true_negatives}>")
-
-        # input()
-
-        # Make predictions: 1 if reconstruction error > threshold, 0 otherwise
-        predictions = (anomaly_recon_errors > (threshold)).astype(int)
+        threshold = args.alpha
+        predictions = (recon_suprisals > (threshold)).astype(int)
 
         # Calculate confusion matrix elements
         true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))

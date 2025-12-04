@@ -55,6 +55,16 @@ For each feature listed, there exists a column in the .csv file we used for trai
 
 While this was our schema for the data, the system is smart enough to pick up any encoded .csv datasets using the same format. As long as the last column in the .csv file is 'label', the first row is the column headers, and all values below the first row are numbers, then the VAE should train and test on that dataset just fine.<br>
 
+## Dataset
+
+For training the model, the use of OpenSearch data was originally intended, providing the same network traffic information as seen on the Western Washington Kibana dashboard. However, OpenSearch was not able to provide anomalous data for testing. Therefore, we turned to the public netflow dataset, NIDS. Their main website can be found here: https://staff.itee.uq.edu.au/marius/NIDS_datasets/<br><br>
+
+To prepare the dataset for training and testing<br>
+1) Download the Netflow V3 'NF-UNSW-NB15-v3' dataset.<br>
+2) Create a directory named 'data' within the project's repository and place the dataset there.<br>
+3) Run 'py ./Download.py .\data\NF-UNSW-NB15-v3.csv' in the main repository, which will generate a formatted version of the dataset, as specified in the Data section, in the main repository.<br>
+4) Place the newly created dataset into the 'data' directory and rename it to 'data.csv'<br>
+   
 ## How to install
 
 We used python 3.12.8 for this project:<br>
@@ -75,6 +85,8 @@ The libraries required for this project, along with the pip command to install t
    pip install scikit-learn==1.7.2<br>
    pip install requests==2.32.5<br>
    pip install tqdm==4.67.1<br>
+
+
 
 ## How to train the model
 
