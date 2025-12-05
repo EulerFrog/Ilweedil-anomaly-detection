@@ -132,9 +132,9 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def train(
-        args: dict, 
+        args: dict,
         name_of_model: str,
-        dataset: VAEDataset, 
+        dataset: VAEDataset,
         train_dataset_size: int = 100,
         validation_dataset_size: int = 100,
         test_dataset_size: int = 100,
@@ -152,6 +152,14 @@ def train(
         test_dataset_size: int - represents the number of anomalou records the dataloader used in validation should have
         model_class: object - The autoencoder class to use (e.g., VAEAnomalyTabular). If None, uses default.
     """
+    # Convert args dict to object for attribute-style access
+    class AttrDict(dict):
+        def __init__(self, *args, **kwargs):
+            super(AttrDict, self).__init__(*args, **kwargs)
+            self.__dict__ = self
+
+    args = AttrDict(args)
+
     # Locals
     experiment_folder = None
     checkpoint_folder = None
@@ -180,27 +188,45 @@ def train(
     if model_class is None:
         model_class = VAEAnomalyTabular
 
-    # Initialize model
-    model = model_class(
-        dataset.input_size,
-        args.latent_size,
-        args.num_resamples,
-        lr=args.lr
-    )
+    # Initialize model with appropriate parameters based on model type
+    # Check if this is a convolutional model (needs image_channels and image_size)
+    if 'Conv' in model_class.__name__:
+        # Convolutional VAE for images (e.g., MNIST)
+        model = model_class(
+            dataset.input_size,
+            args.latent_size,
+            image_channels=1,  # Grayscale images
+            image_size=28,     # MNIST is 28x28
+            L=args.num_resamples,
+            lr=args.lr
+        )
+    else:
+        # Tabular VAE for structured data
+        model = model_class(
+            dataset.input_size,
+            args.latent_size,
+            args.num_resamples,
+            lr=args.lr
+        )
     model = model.to(device)
 
     # Retrieve data loaders from VAE dataset
     train_dloader = dataset.get_benign_dataloader(
-        batch_size=args.batch_size, 
+        batch_size=args.batch_size,
         size = train_dataset_size
         )
     val_dloader = dataset.get_benign_dataloader(
-        batch_size=args.batch_size, 
+        batch_size=args.batch_size,
         size = validation_dataset_size
         )
-    test_dloader = dataset.get_anomalous_dataloader(
+    # Test set should include both benign and anomalous samples for proper metrics
+    # Split test_dataset_size equally between benign and anomalous
+    test_benign_size = test_dataset_size // 2
+    test_anomalous_size = test_dataset_size - test_benign_size
+    test_dloader = dataset.get_dataloader(
         batch_size=args.batch_size,
-        size=test_dataset_size
+        benign_size=test_benign_size,
+        anomalous_size=test_anomalous_size
     )
 
     # Create checkpoint folder
@@ -371,8 +397,19 @@ def train(
                 # Calculate per-sample reconstruction errors
                 # Get the reconstruction distribution
                 pred_result = model.predict(x)
-                x_expanded = x.unsqueeze(0)  # Shape: [1, batch_size, features]
-                recon_dist = torch.distributions.Normal(pred_result['recon_mu'], pred_result['recon_sigma'])
+
+                # Flatten reconstructions if they're in image format (for convolutional models)
+                recon_mu = pred_result['recon_mu']
+                recon_sigma = pred_result['recon_sigma']
+                if len(recon_mu.shape) > 3:  # Image format: [L, batch_size, channels, height, width]
+                    recon_mu = recon_mu.view(recon_mu.size(0), recon_mu.size(1), -1)  # [L, batch_size, features]
+                    recon_sigma = recon_sigma.view(recon_sigma.size(0), recon_sigma.size(1), -1)  # [L, batch_size, features]
+
+                # Flatten x if needed
+                x_flat = x.view(x.size(0), -1)  # [batch_size, features]
+                x_expanded = x_flat.unsqueeze(0)  # Shape: [1, batch_size, features]
+
+                recon_dist = torch.distributions.Normal(recon_mu, recon_sigma)
 
                 # Calculate negative log-likelihood per sample (reconstruction error)
                 # log_prob: [L, batch_size, features] -> mean over L and sum over features
@@ -428,7 +465,7 @@ def train(
         # input()
 
         # Make predictions: 1 if reconstruction error > threshold, 0 otherwise
-        predictions = (anomaly_recon_errors < (threshold)).astype(int)
+        predictions = (anomaly_recon_errors > threshold).astype(int)
 
         # Calculate confusion matrix elements
         true_positives = np.sum((predictions == 1) & (anomaly_labels == 1))
@@ -489,7 +526,7 @@ def train(
             'optimizer_state_dict': optimizer.state_dict(),
             'train_loss': avg_train_loss,
             'val_loss': avg_val_loss,
-            'config': args
+            'config': dict(args)  # Convert AttrDict back to regular dict for pickling
         }
 
         torch.save(checkpoint, checkpoint_folder / f'epoch_{epoch:03d}_val_loss_{avg_val_loss:.4f}.ckpt')
@@ -550,7 +587,7 @@ def train_test(
     # Locals
     args = None
     test_model_path = ""
-    test_folder_name = os.getcwd() + '\\test_folder'
+    test_folder_name = os.path.join(os.getcwd(), 'test_folder')
     str_holder = ""
     i = 1
     train_train_benign_size = 0.0
@@ -570,7 +607,7 @@ def train_test(
 
     # Within test_folder, check for models of the same name as this test. If they exist, create a new
     #   name for the model that isn't seen in the folder.
-    test_model_path = test_folder_name + "\\" + args.test_name
+    test_model_path = os.path.join(test_folder_name, args.test_name)
     str_holder = test_model_path
     while os.path.isdir(str_holder):
         str_holder = test_model_path + " " + str(i)

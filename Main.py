@@ -8,8 +8,8 @@ import os
 
 def main():
 
-    # Load dataset 
-    dataset = VAEDataset(from_file=True, data_file_path=os.getcwd() + "\\data\\data.csv")
+    # Load dataset
+    dataset = VAEDataset(from_file=True, data_file_path=os.path.join(os.getcwd(), "data", "data.csv"))
 
     # Train and test model on dataset
     train_test(

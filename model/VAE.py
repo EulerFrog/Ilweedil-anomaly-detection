@@ -103,7 +103,17 @@ class VAEAnomalyDetection(nn.Module, ABC):
 
 
 
-        log_lik = recon_dist.log_prob(x).mean(dim=0).mean(dim=0).sum()
+        log_prob_raw = recon_dist.log_prob(x)
+        log_lik = log_prob_raw.mean(dim=0).mean(dim=0).sum()
+
+        # Debug: print shapes and sample values
+        if torch.rand(1).item() < 0.01:  # Print 1% of the time
+            print(f"DEBUG: x shape: {x.shape}, recon_mu shape: {pred_result['recon_mu'].shape}")
+            print(f"DEBUG: log_prob_raw shape: {log_prob_raw.shape}")
+            print(f"DEBUG: log_prob_raw sample values: min={log_prob_raw.min():.2f}, max={log_prob_raw.max():.2f}, mean={log_prob_raw.mean():.2f}")
+            print(f"DEBUG: recon_sigma sample values: min={pred_result['recon_sigma'].min():.2f}, max={pred_result['recon_sigma'].max():.2f}, mean={pred_result['recon_sigma'].mean():.2f}")
+            print(f"DEBUG: log_lik final value: {log_lik:.2f}")
+
         kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
         loss = kl - log_lik
         return dict(loss=loss, kl=kl, recon_loss=log_lik, **pred_result)
@@ -127,12 +137,12 @@ class VAEAnomalyDetection(nn.Module, ABC):
         batch_size = len(x)
         encoded_input = self.encoder(x)
         latent_mu, latent_sigma = torch.chunk(encoded_input, 2, dim=1)
-        latent_sigma = softplus(latent_sigma)
+        latent_sigma = softplus(latent_sigma) + 0.1  # Prevent sigma collapse
         dist = Normal(latent_mu, latent_sigma)
         z = dist.rsample([self.L])
         z = z.view(self.L * batch_size, self.latent_size)
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
-        recon_sigma = softplus(recon_sigma)
+        recon_sigma = softplus(recon_sigma) + 1.0  # Larger min for high-dim data (was 0.5)
         recon_mu = recon_mu.view(self.L, *x.shape)
         recon_sigma = recon_sigma.view(self.L, *x.shape)
         return dict(
@@ -191,7 +201,7 @@ class VAEAnomalyDetection(nn.Module, ABC):
         """
         z = self.prior.sample((batch_size, self.latent_size))
         recon_mu, recon_sigma = self.decoder(z).chunk(2, dim=1)
-        recon_sigma = softplus(recon_sigma)
+        recon_sigma = softplus(recon_sigma) + 1e-4  # Add minimum to prevent collapse
         return recon_mu + recon_sigma * torch.rand_like(recon_sigma)
 
 
@@ -236,6 +246,134 @@ class VAEAnomalyTabular(VAEAnomalyDetection):
             nn.Linear(200, 500),
             nn.ReLU(),
             nn.Linear(500, output_size * 2)
+        )
+
+
+class VAEAnomalyConv(VAEAnomalyDetection):
+    """
+    Convolutional VAE for image data (e.g., MNIST).
+    Input is expected to be images of shape (batch, channels, height, width).
+    """
+
+    def __init__(self, input_size: int, latent_size: int, image_channels: int = 1,
+                 image_size: int = 28, L: int = 10, lr: float = 1e-3, *args, **kwargs):
+        """
+        Args:
+            input_size: Total number of pixels (channels * height * width)
+            latent_size: Size of the latent space
+            image_channels: Number of image channels (1 for grayscale, 3 for RGB)
+            image_size: Height/width of square image (assumes square images)
+            L: Number of latent samples
+            lr: Learning rate
+        """
+        self.image_channels = image_channels
+        self.image_size = image_size
+        super().__init__(input_size, latent_size, L, lr, *args, **kwargs)
+
+    def make_encoder(self, input_size, latent_size):
+        """
+        Convolutional encoder for image data.
+        Input: (batch, 1, 28, 28) for MNIST
+        Output: (batch, latent_size * 2) for mu and sigma
+        """
+        return nn.Sequential(
+            # Input: (batch, 1, 28, 28)
+            nn.Conv2d(self.image_channels, 32, kernel_size=3, stride=2, padding=1),  # -> (batch, 32, 14, 14)
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # -> (batch, 64, 7, 7)
+            nn.ReLU(),
+            nn.Flatten(),  # -> (batch, 64*7*7 = 3136)
+            nn.Linear(64 * 7 * 7, 256),
+            nn.ReLU(),
+            nn.Linear(256, latent_size * 2)  # -> (batch, latent_size * 2)
+        )
+
+    def make_decoder(self, latent_size, output_size):
+        """
+        Convolutional decoder for image data.
+        Input: (batch, latent_size)
+        Output: (batch, output_size * 2) for mu and sigma (flattened images)
+        """
+        return nn.Sequential(
+            nn.Linear(latent_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 64 * 7 * 7),
+            nn.ReLU(),
+            nn.Unflatten(1, (64, 7, 7)),  # -> (batch, 64, 7, 7)
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),  # -> (batch, 32, 14, 14)
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, self.image_channels * 2, kernel_size=3, stride=2, padding=1, output_padding=1),  # -> (batch, 2, 28, 28)
+            nn.Flatten(start_dim=1)  # -> (batch, 2*28*28) for mu and sigma
+        )
+
+    def forward(self, x: torch.Tensor) -> dict:
+        """
+        Forward pass that handles image reshaping.
+
+        Args:
+            x: Input images, shape (batch, channels, height, width) or (batch, flattened)
+        """
+        # Reshape if needed
+        original_shape = x.shape
+        if len(x.shape) == 2:  # (batch, flattened)
+            x = x.view(-1, self.image_channels, self.image_size, self.image_size)
+
+        # Get predictions
+        pred_result = self.predict(x)
+
+        # Flatten x for loss calculation
+        x_flat = x.view(x.size(0), -1)
+        x_flat = x_flat.unsqueeze(0)  # Add L dimension
+
+        # Reshape recon_mu and recon_sigma to match flattened input
+        recon_mu_flat = pred_result['recon_mu'].view(self.L, x.size(0), -1)
+        recon_sigma_flat = pred_result['recon_sigma'].view(self.L, x.size(0), -1)
+
+        recon_dist = Normal(recon_mu_flat, recon_sigma_flat)
+        log_lik = recon_dist.log_prob(x_flat).mean(dim=0).mean(dim=0).sum()
+        kl = kl_divergence(pred_result['latent_dist'], self.prior).mean(dim=0).sum()
+        loss = kl - log_lik
+
+        return dict(loss=loss, kl=kl, recon_loss=log_lik, **pred_result)
+
+    def predict(self, x) -> dict:
+        """
+        Predict with proper image handling.
+
+        Args:
+            x: Input images, shape (batch, channels, height, width) or (batch, flattened)
+        """
+        batch_size = len(x)
+
+        # Reshape if needed (handle flattened input)
+        if len(x.shape) == 2:  # (batch, flattened)
+            x = x.view(-1, self.image_channels, self.image_size, self.image_size)
+
+        # Encode
+        encoded_input = self.encoder(x)
+        latent_mu, latent_sigma = torch.chunk(encoded_input, 2, dim=1)
+        latent_sigma = softplus(latent_sigma) + 1e-4
+
+        dist = Normal(latent_mu, latent_sigma)
+        z = dist.rsample([self.L])
+        z = z.view(self.L * batch_size, self.latent_size)
+
+        # Decode
+        decoded = self.decoder(z)
+        recon_mu, recon_sigma = decoded.chunk(2, dim=1)
+        recon_sigma = softplus(recon_sigma) + 1e-4
+
+        # Reshape to image format
+        recon_mu = recon_mu.view(self.L, batch_size, self.image_channels, self.image_size, self.image_size)
+        recon_sigma = recon_sigma.view(self.L, batch_size, self.image_channels, self.image_size, self.image_size)
+
+        return dict(
+            latent_dist=dist,
+            latent_mu=latent_mu,
+            latent_sigma=latent_sigma,
+            recon_mu=recon_mu,
+            recon_sigma=recon_sigma,
+            z=z
         )
     
 # class VAEAnomalyDetection(pl.LightningModule, ABC):

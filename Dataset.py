@@ -183,9 +183,8 @@ class VAEDataset(ABC):
 
         slice_data = self.anomalous_data[self.unallocated_anomalous_data_start_index:(self.unallocated_anomalous_data_start_index+size)]
         self.unallocated_anomalous_data_start_index = self.unallocated_anomalous_data_start_index + size
-        slice_labels = torch.tensor((), dtype=torch.int)
-        slice_labels = slice_labels.new_ones((size,1))
-        
+        slice_labels = torch.ones(size, dtype=torch.int)
+
         dataset = TensorDataset(slice_data, slice_labels)
         return DataLoader(dataset, batch_size=batch_size, shuffle=False,
                          num_workers=num_workers, **kwargs)
@@ -233,11 +232,9 @@ class VAEDataset(ABC):
 
         # Create slices of anomalous and benign data. Create parallel labels for each data record based on if the record is anomalous or benign.
         anomalous_slice_data = self.anomalous_data[self.unallocated_anomalous_data_start_index:(self.unallocated_anomalous_data_start_index+anomalous_size)]
-        anomalous_slice_labels = torch.tensor((), dtype=torch.int)
-        anomalous_slice_labels = anomalous_slice_data.new_ones((anomalous_size, 1))
+        anomalous_slice_labels = torch.ones(anomalous_size, dtype=torch.int)
         benign_slice_data = self.benign_data[self.unallocated_benign_data_start_index:(self.unallocated_benign_data_start_index+benign_size)]
-        benign_slice_labels = torch.tensor((), dtype=torch.int)
-        benign_slice_labels = benign_slice_labels.new_zeros((benign_size,1))
+        benign_slice_labels = torch.zeros(benign_size, dtype=torch.int)
         
         # print('anomalous slice')
         # print(anomalous_slice_data)
@@ -689,4 +686,56 @@ class MNISTDataset(Dataset):
 
     def __len__(self):
         return len(self.mnist)
+
+
+class MNISTAnomalyDataset(VAEDataset):
+    """
+    MNIST dataset wrapper for anomaly detection where digit 0 is the anomalous class.
+
+    Integrates with VAEDataset interface:
+    - Benign data: All digits except 0 (digits 1-9)
+    - Anomalous data: Only digit 0
+    """
+
+    def __init__(self, train=True, anomaly_digit=0):
+        """
+        Initialize MNIST anomaly detection dataset.
+
+        Args:
+            train: If True, load training set. If False, load test set.
+            anomaly_digit: Which digit to treat as anomalous (default: 0)
+        """
+        self.anomaly_digit = anomaly_digit
+
+        # Load MNIST dataset
+        mnist = MNIST(root='./data', train=train, download=True, transform=None)
+
+        # Convert to tensors and normalize
+        images = []
+        labels = []
+
+        for img, label in mnist:
+            # Convert PIL image to tensor and normalize to [0, 1]
+            img_tensor = torch.tensor(np.array(img), dtype=torch.float32) / 255.0
+            # Keep as (28, 28) for convolutional VAE, add channel dimension
+            img_tensor = img_tensor.unsqueeze(0)  # Shape: (1, 28, 28)
+            images.append(img_tensor)
+            labels.append(label)
+
+        images = torch.stack(images)  # Shape: (N, 1, 28, 28)
+        labels = torch.tensor(labels, dtype=torch.int)
+
+        # Create binary labels: 0 for benign (digits 1-9), 1 for anomalous (digit 0)
+        binary_labels = (labels == anomaly_digit).long()
+
+        # Flatten images for VAEDataset compatibility (will be reshaped in model)
+        images_flat = images.view(images.size(0), -1)  # Shape: (N, 784)
+
+        print(f"\nMNIST Anomaly Detection Dataset ({'train' if train else 'test'} set):")
+        print(f"  Anomalous digit: {anomaly_digit}")
+        print(f"  Benign samples (digits != {anomaly_digit}): {(binary_labels == 0).sum().item()}")
+        print(f"  Anomalous samples (digit == {anomaly_digit}): {(binary_labels == 1).sum().item()}")
+
+        # Initialize parent VAEDataset class
+        super().__init__(from_tensor=True, data=images_flat, labels=binary_labels)
 
